@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  exoplanet-analysis:
+    build: .
+    ports:
+      - "8000:8000"  # API
+      - "8501:8501"  # Streamlit UI
+    volumes:
+      - ./data:/data
+      - ./pdfs:/app/pdfs:ro  # Mount PDFs read-only
+    environment:
+      - DATA_DIR=/data
+      - PYTHONPATH=/app
+    command: python Anima.py --api
+    
+  exoplanet-ui:
+    build: .
+    ports:
+      - "8502:8501"
+    volumes:
+      - ./data:/data
+    environment:
+      - DATA_DIR=/data
+      - PYTHONPATH=/app
+    command: streamlit run Vasitva.py --server.address=0.0.0.0 --server.port=8501
+    depends_on:
+      - exoplanet-analysis
+
+volumes:
+  data:

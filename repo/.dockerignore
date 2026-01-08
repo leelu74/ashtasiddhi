@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.git
+.gitignore
+README.md
+.DS_Store
+.vscode
+*.log
+.pytest_cache
+.coverage
+htmlcov/
