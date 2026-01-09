@@ -17,30 +17,31 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# Import other agents
-from Anima import AnimaAgent
+# Import other agents (avoid circular import with Anima)
 from Isitva import IsitvaAgent
 from Garima import GarimaAgent
 
 class VasitvaAgent:
     """Agent for Streamlit UI and data visualization"""
     
-    def __init__(self, data_dir: str = "/data"):
+    def __init__(self, data_dir: str = "./data"):
         self.logger = logging.getLogger("Vasitva")
         self.data_dir = Path(data_dir)
         
-        # Initialize other agents
-        self.anima = AnimaAgent(data_dir)
+        # Initialize agents directly (avoid circular import)
         self.isitva = IsitvaAgent(data_dir)
         self.garima = GarimaAgent()
         
-        # Configure Streamlit
-        st.set_page_config(
-            page_title="Exoplanet Analysis Dashboard",
-            page_icon="🪐",
-            layout="wide",
-            initial_sidebar_state="expanded"
-        )
+        # Create Anima agent lazily when needed to avoid circular import
+        self._anima = None
+    
+    @property
+    def anima(self):
+        """Lazy loading of Anima agent to avoid circular import"""
+        if self._anima is None:
+            from Anima import AnimaAgent
+            self._anima = AnimaAgent(str(self.data_dir))
+        return self._anima
     
     def start_ui(self, host: str = "0.0.0.0", port: int = 8501):
         """Start the Streamlit UI"""
@@ -48,6 +49,14 @@ class VasitvaAgent:
     
     def run_dashboard(self):
         """Main dashboard interface"""
+        # Configure Streamlit
+        st.set_page_config(
+            page_title="Exoplanet Analysis Dashboard",
+            page_icon="🪐",
+            layout="wide",
+            initial_sidebar_state="expanded"
+        )
+        
         # Sidebar navigation
         st.sidebar.title("🪐 Exoplanet Analysis")
         page = st.sidebar.radio(

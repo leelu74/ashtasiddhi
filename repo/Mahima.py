@@ -17,8 +17,7 @@ from pydantic import BaseModel
 import asyncio
 import tempfile
 
-# Import other agents
-from Anima import AnimaAgent
+# Import other agents (avoid circular import with Anima)
 from Isitva import IsitvaAgent
 from Prapti import PraptiAgent
 
@@ -36,16 +35,34 @@ class SimulationRequest(BaseModel):
 class MahimaAgent:
     """Agent for backend operations and API management"""
     
-    def __init__(self, data_dir: str = "/data"):
+    def __init__(self, data_dir: str = "./data"):
         self.logger = logging.getLogger("Mahima")
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         
-        # Initialize other agents
-        self.anima = AnimaAgent(data_dir)
+        # Initialize agents directly (avoid circular import)
         self.isitva = IsitvaAgent(data_dir)
         self.prapti = PraptiAgent()
         
+        # Create Anima agent lazily when needed to avoid circular import
+        self._anima = None
+        
+        # Setup FastAPI
+        self._setup_fastapi()
+        
+        # Setup routes
+        self._setup_routes()
+    
+    @property
+    def anima(self):
+        """Lazy loading of Anima agent to avoid circular import"""
+        if self._anima is None:
+            from Anima import AnimaAgent
+            self._anima = AnimaAgent(str(self.data_dir))
+        return self._anima
+    
+    def _setup_fastapi(self):
+        """Setup FastAPI application"""
         # FastAPI app
         self.app = FastAPI(
             title="Exoplanet Analysis API",
@@ -61,10 +78,6 @@ class MahimaAgent:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        
-        # Setup routes
-        self._setup_routes()
-    
     def _setup_routes(self):
         """Setup FastAPI routes"""
         

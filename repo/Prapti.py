@@ -21,7 +21,7 @@ except ImportError:
 class PraptiAgent:
     """Agent for managing external repositories and simulations"""
     
-    def __init__(self, repos_dir: str = "/data/repos"):
+    def __init__(self, repos_dir: str = "./data/repos"):
         self.logger = logging.getLogger("Prapti")
         self.repos_dir = Path(repos_dir)
         self.repos_dir.mkdir(parents=True, exist_ok=True)

@@ -15,7 +15,7 @@ import pandas as pd
 class IsitvaAgent:
     """Agent for unified data storage and management"""
     
-    def __init__(self, data_dir: str = "/data"):
+    def __init__(self, data_dir: str = "./data"):
         self.logger = logging.getLogger("Isitva")
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
