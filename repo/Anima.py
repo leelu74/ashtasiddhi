@@ -42,8 +42,8 @@ class AnimaAgent:
             self.prakamya = PrakamyaAgent()  # Keywords extraction
             self.laghima = LaghimaAgent()    # Paper search
             self.prapti = PraptiAgent()      # Repo management
-            self.garima = GarimaAgent()      # Analysis & metrics
-            self.isitva = IsitvaAgent()      # Data storage
+            self.garima = GarimaAgent(str(self.data_dir))  # Analysis & metrics (with DB rules)
+            self.isitva = IsitvaAgent(str(self.data_dir))  # Data storage
             self.mahima = MahimaAgent()      # Backend ops
             
             # Initialize vasitva lazily to avoid circular import

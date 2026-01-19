@@ -24,6 +24,9 @@ RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 # Try to download spaCy model (optional)
 RUN python -c "import spacy; spacy.cli.download('en_core_web_sm')" || echo "spaCy model download failed, will use basic NLP"
 
+# Download NLTK data
+RUN python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab'); nltk.download('stopwords'); nltk.download('averaged_perceptron_tagger')"
+
 # Copy application code
 COPY . .
 
