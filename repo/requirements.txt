@@ -1,72 +1,47 @@
-# Core Python dependencies for Exoplanet Analysis Agent System
+# Streamlined dependencies for Exoplanet Analysis Agent System
 
-# PDF Processing
-PyPDF2==3.0.1
-pdfplumber==0.10.0
+# Build essentials
+setuptools>=65.0
+wheel
 
-# Natural Language Processing
-nltk==3.8.1
-spacy==3.7.2
-en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+# Core web framework
+streamlit>=1.28.0
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+python-multipart
 
-# Scientific Computing
-numpy==1.24.3
-pandas==2.0.3
-scipy==1.11.1
-matplotlib==3.7.2
-seaborn==0.12.2
+# Scientific computing
+numpy>=1.24.0
+pandas>=2.0.0
+matplotlib>=3.7.0
+plotly>=5.0.0
+seaborn>=0.12.0
 
-# Astronomy/Astrophysics
-galsim==2.5.3
-astropy==5.3.1
+# PDF processing
+PyPDF2>=3.0.0
 
-# Web Framework and API
-streamlit==1.26.0
-fastapi==0.103.1
-uvicorn[standard]==0.23.2
-python-multipart==0.0.6
+# Natural language processing
+nltk>=3.8
+spacy>=3.7.0
 
-# Data Visualization
-plotly==5.15.0
-bokeh==3.2.2
+# HTTP and utilities
+requests>=2.28.0
+PyYAML>=6.0
+GitPython>=3.1.0
+arxiv>=2.0.0
 
-# HTTP Requests and Web Scraping
-requests==2.31.0
-beautifulsoup4==4.12.2
-lxml==4.9.3
+# CLI formatting
+rich>=13.0.0
 
-# Paper Search and Academic APIs
-arxiv==1.4.8
+# Data export
+openpyxl>=3.1.0
 
-# Version Control
-GitPython==3.1.32
-
-# Database
-sqlite3  # Built into Python
-
-# Data Export
-openpyxl==3.1.2
-xlsxwriter==3.1.2
-
-# Image Processing (for PDF figures)
-Pillow==10.0.0
-opencv-python==4.8.0.76
-
-# Machine Learning (optional, for advanced analysis)
-scikit-learn==1.3.0
+# Image processing
+Pillow>=10.0.0
 
 # Utilities
-pathlib2==2.3.7
-python-dotenv==1.0.0
-tqdm==4.66.1
-click==8.1.7
+tqdm>=4.65.0
+click>=8.0.0
 
-# Testing
-pytest==7.4.0
-pytest-cov==4.1.0
-
-# Docker and containerization support
-docker==6.1.3
-
-# Additional scientific libraries
-sympy==1.12
+# Testing (optional)
+reportlab>=4.0.0

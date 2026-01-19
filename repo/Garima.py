@@ -15,10 +15,12 @@ import PyPDF2
 
 class GarimaAgent:
     """Agent for exoplanet analysis and metric computation"""
-    
-    def __init__(self):
+
+    def __init__(self, data_dir: str = "./data", use_db_rules: bool = True):
         self.logger = logging.getLogger("Garima")
-        
+        self.data_dir = data_dir
+        self.use_db_rules = use_db_rules
+
         # Physical constants
         self.G = 6.67430e-11  # m^3 kg^-1 s^-2
         self.M_sun = 1.989e30  # kg
@@ -26,8 +28,13 @@ class GarimaAgent:
         self.AU = 1.496e11    # m
         self.L_sun = 3.828e26 # W
         self.S_earth = 1361   # W/m^2 (Solar constant at Earth)
-        
-        # Chemical species patterns for NER
+
+        # Initialize patterns - load from DB if available
+        self._load_patterns()
+
+    def _load_patterns(self):
+        """Load patterns from database or use defaults"""
+        # Default chemical species patterns
         self.chemical_patterns = {
             'h2o': [r'\bh2o\b', r'\bwater\b', r'h₂o'],
             'h2s': [r'\bh2s\b', r'hydrogen\s+sulfide', r'h₂s'],
@@ -41,42 +48,108 @@ class GarimaAgent:
             'n2': [r'\bn2\b(?!\w)', r'\bnitrogen\b', r'n₂'],
             'sulfur': [r'\bsulfur\b', r'\bs\b(?=\s+species)', r'\bsulphur\b']
         }
-        
-        # Radial velocity extraction patterns
+
+        # Default radial velocity extraction patterns
         self.rv_patterns = {
             'k_velocity': [
-                r'k\s*=?\s*([0-9\.]+)\s*(m/s|ms⁻¹|m\s*s⁻¹)',
-                r'radial\s+velocity\s+amplitude\s*=?\s*([0-9\.]+)\s*(m/s|ms⁻¹)',
-                r'rv\s+amplitude\s*=?\s*([0-9\.]+)\s*(m/s|ms⁻¹)'
+                r'k\s*=?\s*(\d+\.?\d*)\s*(m/s|ms⁻¹|m\s*s⁻¹)',
+                r'radial\s+velocity\s+amplitude\s*=?\s*(\d+\.?\d*)\s*(m/s|ms⁻¹)',
+                r'rv\s+amplitude\s*=?\s*(\d+\.?\d*)\s*(m/s|ms⁻¹)'
             ],
             'period': [
-                r'period\s*=?\s*([0-9\.]+)\s*(days?|d\b)',
-                r'orbital\s+period\s*=?\s*([0-9\.]+)\s*(days?|d\b)',
-                r'p\s*=?\s*([0-9\.]+)\s*(days?|d\b)'
+                r'period\s*=?\s*(\d+\.?\d*)\s*(days?|d\b)',
+                r'orbital\s+period\s*=?\s*(\d+\.?\d*)\s*(days?|d\b)',
+                r'p\s*=?\s*(\d+\.?\d*)\s*(days?|d\b)'
             ],
             'eccentricity': [
-                r'eccentricity\s*=?\s*([0-9\.]+)',
-                r'e\s*=?\s*([0-9\.]+)'
+                r'eccentricity\s*=?\s*(\d+\.?\d*)',
+                r'e\s*=?\s*(\d+\.?\d*)'
             ]
         }
-        
-        # Transit patterns
+
+        # Default transit patterns
         self.transit_patterns = {
             'depth': [
-                r'transit\s+depth\s*=?\s*([0-9\.e\-\+]+)\s*(%|ppm|mmag)',
-                r'depth\s*=?\s*([0-9\.e\-\+]+)\s*(%|ppm|mmag)',
-                r'δ\s*=?\s*([0-9\.e\-\+]+)\s*(%|ppm|mmag)'
+                r'transit\s+depth\s*=?\s*(\d+\.?\d*(?:[eE][+-]?\d+)?)\s*(%|ppm|mmag)',
+                r'depth\s*=?\s*(\d+\.?\d*(?:[eE][+-]?\d+)?)\s*(%|ppm|mmag)',
+                r'δ\s*=?\s*(\d+\.?\d*(?:[eE][+-]?\d+)?)\s*(%|ppm|mmag)'
             ],
             'radius_ratio': [
-                r'r[_p]?/r[_\*]?\s*=?\s*([0-9\.]+)',
-                r'planet\s+radius\s+ratio\s*=?\s*([0-9\.]+)',
-                r'rp/rs?\s*=?\s*([0-9\.]+)'
+                r'r[_p]?/r[_\*]?\s*=?\s*(\d+\.?\d*)',
+                r'planet\s+radius\s+ratio\s*=?\s*(\d+\.?\d*)',
+                r'rp/rs?\s*=?\s*(\d+\.?\d*)'
             ],
             'planet_radius': [
-                r'planet\s+radius\s*=?\s*([0-9\.]+)\s*(r_earth|earth\s+radii|r_⊕)',
-                r'r[_p]?\s*=?\s*([0-9\.]+)\s*(r_earth|earth\s+radii|r_⊕)'
+                r'planet\s+radius\s*=?\s*(\d+\.?\d*)\s*(r_earth|earth\s+radii|r_⊕)',
+                r'r[_p]?\s*=?\s*(\d+\.?\d*)\s*(r_earth|earth\s+radii|r_⊕)'
             ]
         }
+
+        # Try to load from database if enabled
+        if self.use_db_rules:
+            try:
+                from Isitva import IsitvaAgent
+                isitva = IsitvaAgent(self.data_dir)
+
+                # Load chemical patterns from DB - use pattern as single regex (don't split)
+                db_chemical = isitva.get_rules_by_category('chemical_species')
+                if db_chemical:
+                    self.chemical_patterns = {}
+                    for rule in db_chemical:
+                        # Store the full pattern as a single item list
+                        self.chemical_patterns[rule['name']] = [rule['patterns']]
+                    self.logger.info(f"Loaded {len(db_chemical)} chemical patterns from DB")
+
+                # Load RV patterns from DB - use pattern as single regex
+                db_rv = isitva.get_rules_by_category('rv_patterns')
+                if db_rv:
+                    for rule in db_rv:
+                        if rule['name'] in self.rv_patterns:
+                            self.rv_patterns[rule['name']] = [rule['patterns']]
+
+                # Load transit patterns from DB - use pattern as single regex
+                db_transit = isitva.get_rules_by_category('transit_patterns')
+                if db_transit:
+                    for rule in db_transit:
+                        if rule['name'] in self.transit_patterns:
+                            self.transit_patterns[rule['name']] = [rule['patterns']]
+
+                # Load unique materials patterns
+                db_unique = isitva.get_rules_by_category('unique_materials')
+                if db_unique:
+                    self.unique_patterns = []
+                    for rule in db_unique:
+                        self.unique_patterns.append(rule['patterns'])
+                else:
+                    self._set_default_unique_patterns()
+
+                self.logger.info("Successfully loaded patterns from database")
+
+            except Exception as e:
+                self.logger.warning(f"Could not load patterns from DB, using defaults: {e}")
+                self._set_default_unique_patterns()
+        else:
+            self._set_default_unique_patterns()
+
+    def _set_default_unique_patterns(self):
+        """Set default unique materials patterns"""
+        self.unique_patterns = [
+            r'(tio2|titanium\s+oxide)',
+            r'(vo|vanadium\s+oxide)',
+            r'(na|sodium)',
+            r'(k|potassium)',
+            r'(mg|magnesium)',
+            r'(fe|iron)',
+            r'(al|aluminum|aluminium)',
+            r'(si|silicon)',
+            r'(clouds?|hazes?)',
+            r'(aerosols?)'
+        ]
+
+    def reload_patterns(self):
+        """Reload patterns from database (call after rule updates)"""
+        self._load_patterns()
+        self.logger.info("Patterns reloaded from database")
     
     def extract_text_from_pdf(self, pdf_path: str) -> str:
         """Extract text from PDF file"""
@@ -141,13 +214,13 @@ class GarimaAgent:
         
         # Extract abundances with values
         abundance_patterns = [
-            r'(h2o|water)\s*[:\=\~]?\s*([0-9\.e\-\+]+)\s*(ppm|ppb|%|\%)',
-            r'(h2s|hydrogen\s+sulfide)\s*[:\=\~]?\s*([0-9\.e\-\+]+)\s*(ppm|ppb|%|\%)',
-            r'(so2|sulfur\s+dioxide)\s*[:\=\~]?\s*([0-9\.e\-\+]+)\s*(ppm|ppb|%|\%)',
-            r'(ch4|methane)\s*[:\=\~]?\s*([0-9\.e\-\+]+)\s*(ppm|ppb|%|\%)',
-            r'(co2|carbon\s+dioxide)\s*[:\=\~]?\s*([0-9\.e\-\+]+)\s*(ppm|ppb|%|\%)',
-            r'(h2|hydrogen)\s*[:\=\~]?\s*([0-9\.e\-\+]+)\s*(ppm|ppb|%|\%)',
-            r'(he|helium)\s*[:\=\~]?\s*([0-9\.e\-\+]+)\s*(ppm|ppb|%|\%)'
+            r'(h2o|water)\s*[:\=\~]?\s*(\d+\.?\d*(?:[eE][+-]?\d+)?)\s*(ppm|ppb|%|\%)',
+            r'(h2s|hydrogen\s+sulfide)\s*[:\=\~]?\s*(\d+\.?\d*(?:[eE][+-]?\d+)?)\s*(ppm|ppb|%|\%)',
+            r'(so2|sulfur\s+dioxide)\s*[:\=\~]?\s*(\d+\.?\d*(?:[eE][+-]?\d+)?)\s*(ppm|ppb|%|\%)',
+            r'(ch4|methane)\s*[:\=\~]?\s*(\d+\.?\d*(?:[eE][+-]?\d+)?)\s*(ppm|ppb|%|\%)',
+            r'(co2|carbon\s+dioxide)\s*[:\=\~]?\s*(\d+\.?\d*(?:[eE][+-]?\d+)?)\s*(ppm|ppb|%|\%)',
+            r'(h2|hydrogen)\s*[:\=\~]?\s*(\d+\.?\d*(?:[eE][+-]?\d+)?)\s*(ppm|ppb|%|\%)',
+            r'(he|helium)\s*[:\=\~]?\s*(\d+\.?\d*(?:[eE][+-]?\d+)?)\s*(ppm|ppb|%|\%)'
         ]
         
         for pattern in abundance_patterns:
@@ -158,25 +231,21 @@ class GarimaAgent:
                 unit = match.group(3)
                 composition['abundances'][species] = {'value': value, 'unit': unit}
         
-        # Look for unique/unusual materials
-        unique_patterns = [
-            r'(tio2|titanium\s+oxide)',
-            r'(vo|vanadium\s+oxide)',
-            r'(na|sodium)',
-            r'(k|potassium)',
-            r'(mg|magnesium)',
-            r'(fe|iron)',
-            r'(al|aluminum|aluminium)',
-            r'(si|silicon)',
-            r'(clouds?|hazes?)',
-            r'(aerosols?)'
-        ]
-        
-        for pattern in unique_patterns:
-            if re.search(pattern, text, re.IGNORECASE):
+        # Look for unique/unusual materials (loaded from DB or defaults)
+        for pattern in self.unique_patterns:
+            try:
                 match = re.search(pattern, text, re.IGNORECASE)
-                composition['unique_materials'].append(match.group(1))
-        
+                if match:
+                    # Try to get group 1 if it exists, otherwise use full match
+                    try:
+                        material = match.group(1)
+                    except IndexError:
+                        material = match.group(0)
+                    if material and material not in composition['unique_materials']:
+                        composition['unique_materials'].append(material)
+            except re.error as e:
+                self.logger.warning(f"Invalid regex pattern '{pattern}': {e}")
+
         return composition
     
     def _analyze_radial_velocity(self, text: str) -> Dict[str, Any]:
@@ -301,9 +370,9 @@ class GarimaAgent:
         
         # Extract insolation/stellar flux
         flux_patterns = [
-            r'insolation\s*=?\s*([0-9\.]+)\s*(s_earth|earth)',
-            r'stellar\s+flux\s*=?\s*([0-9\.]+)\s*(s_earth|earth)',
-            r'incident\s+flux\s*=?\s*([0-9\.]+)\s*(s_earth|earth)'
+            r'insolation\s*=?\s*(\d+\.?\d*)\s*(s_earth|earth)',
+            r'stellar\s+flux\s*=?\s*(\d+\.?\d*)\s*(s_earth|earth)',
+            r'incident\s+flux\s*=?\s*(\d+\.?\d*)\s*(s_earth|earth)'
         ]
         
         for pattern in flux_patterns:
@@ -314,9 +383,9 @@ class GarimaAgent:
         
         # Extract effective temperature
         temp_patterns = [
-            r'effective\s+temperature\s*=?\s*([0-9\.]+)\s*k',
-            r't_eff\s*=?\s*([0-9\.]+)\s*k',
-            r'equilibrium\s+temperature\s*=?\s*([0-9\.]+)\s*k'
+            r'effective\s+temperature\s*=?\s*(\d+\.?\d*)\s*k',
+            r't_eff\s*=?\s*(\d+\.?\d*)\s*k',
+            r'equilibrium\s+temperature\s*=?\s*(\d+\.?\d*)\s*k'
         ]
         
         for pattern in temp_patterns:
@@ -327,9 +396,9 @@ class GarimaAgent:
         
         # Extract semi-major axis
         axis_patterns = [
-            r'semi[- ]?major\s+axis\s*=?\s*([0-9\.]+)\s*(au|a\.u\.)',
-            r'orbital\s+distance\s*=?\s*([0-9\.]+)\s*(au|a\.u\.)',
-            r'a\s*=?\s*([0-9\.]+)\s*(au|a\.u\.)'
+            r'semi[- ]?major\s+axis\s*=?\s*(\d+\.?\d*)\s*(au|a\.u\.)',
+            r'orbital\s+distance\s*=?\s*(\d+\.?\d*)\s*(au|a\.u\.)',
+            r'a\s*=?\s*(\d+\.?\d*)\s*(au|a\.u\.)'
         ]
         
         for pattern in axis_patterns:
@@ -354,9 +423,9 @@ class GarimaAgent:
         
         # Mass patterns
         mass_patterns = [
-            r'mass\s*=?\s*([0-9\.]+)\s*(m_earth|earth\s+masses|m_⊕)',
-            r'm[_p]?\s*=?\s*([0-9\.]+)\s*(m_earth|earth\s+masses|m_⊕)',
-            r'planet\s+mass\s*=?\s*([0-9\.]+)\s*(m_earth|earth\s+masses|m_⊕)'
+            r'mass\s*=?\s*(\d+\.?\d*)\s*(m_earth|earth\s+masses|m_⊕)',
+            r'm[_p]?\s*=?\s*(\d+\.?\d*)\s*(m_earth|earth\s+masses|m_⊕)',
+            r'planet\s+mass\s*=?\s*(\d+\.?\d*)\s*(m_earth|earth\s+masses|m_⊕)'
         ]
         
         for pattern in mass_patterns:
@@ -367,8 +436,8 @@ class GarimaAgent:
         
         # Radius patterns (already partially handled in transit analysis)
         radius_patterns = [
-            r'radius\s*=?\s*([0-9\.]+)\s*(r_earth|earth\s+radii|r_⊕)',
-            r'r[_p]?\s*=?\s*([0-9\.]+)\s*(r_earth|earth\s+radii|r_⊕)'
+            r'radius\s*=?\s*(\d+\.?\d*)\s*(r_earth|earth\s+radii|r_⊕)',
+            r'r[_p]?\s*=?\s*(\d+\.?\d*)\s*(r_earth|earth\s+radii|r_⊕)'
         ]
         
         for pattern in radius_patterns:
@@ -391,8 +460,8 @@ class GarimaAgent:
         
         # Stellar mass
         stellar_mass_patterns = [
-            r'stellar\s+mass\s*=?\s*([0-9\.]+)\s*(m_sun|solar\s+masses|m_☉)',
-            r'm[_\*]?\s*=?\s*([0-9\.]+)\s*(m_sun|solar\s+masses|m_☉)'
+            r'stellar\s+mass\s*=?\s*(\d+\.?\d*)\s*(m_sun|solar\s+masses|m_☉)',
+            r'm[_\*]?\s*=?\s*(\d+\.?\d*)\s*(m_sun|solar\s+masses|m_☉)'
         ]
         
         for pattern in stellar_mass_patterns:
@@ -403,8 +472,8 @@ class GarimaAgent:
         
         # Stellar radius
         stellar_radius_patterns = [
-            r'stellar\s+radius\s*=?\s*([0-9\.]+)\s*(r_sun|solar\s+radii|r_☉)',
-            r'r[_\*]?\s*=?\s*([0-9\.]+)\s*(r_sun|solar\s+radii|r_☉)'
+            r'stellar\s+radius\s*=?\s*(\d+\.?\d*)\s*(r_sun|solar\s+radii|r_☉)',
+            r'r[_\*]?\s*=?\s*(\d+\.?\d*)\s*(r_sun|solar\s+radii|r_☉)'
         ]
         
         for pattern in stellar_radius_patterns:
@@ -415,8 +484,8 @@ class GarimaAgent:
         
         # Stellar temperature
         temp_patterns = [
-            r'stellar\s+temperature\s*=?\s*([0-9\.]+)\s*k',
-            r't[_\*]?\s*=?\s*([0-9\.]+)\s*k'
+            r'stellar\s+temperature\s*=?\s*(\d+\.?\d*)\s*k',
+            r't[_\*]?\s*=?\s*(\d+\.?\d*)\s*k'
         ]
         
         for pattern in temp_patterns:
@@ -438,9 +507,9 @@ class GarimaAgent:
         
         # Look for significance measures
         significance_patterns = [
-            r'([0-9\.]+)\s*σ\s+detection',
-            r'significance\s*=?\s*([0-9\.]+)\s*σ',
-            r'([0-9\.]+)\s*sigma'
+            r'(\d+\.?\d*)\s*σ\s+detection',
+            r'significance\s*=?\s*(\d+\.?\d*)\s*σ',
+            r'(\d+\.?\d*)\s*sigma'
         ]
         
         for pattern in significance_patterns:

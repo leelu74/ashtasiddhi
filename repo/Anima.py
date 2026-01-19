@@ -16,13 +16,12 @@ from Laghima import LaghimaAgent
 from Prapti import PraptiAgent
 from Garima import GarimaAgent
 from Isitva import IsitvaAgent
-from Vasitva import VasitvaAgent
 from Mahima import MahimaAgent
 
 class AnimaAgent:
     """Master Agent - Conquers and orchestrates exoplanet analysis"""
     
-    def __init__(self, data_dir: str = "/data"):
+    def __init__(self, data_dir: str = "./data"):
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(exist_ok=True)
         self.unified_data_path = self.data_dir / "unified_data.json"
@@ -43,14 +42,25 @@ class AnimaAgent:
             self.prakamya = PrakamyaAgent()  # Keywords extraction
             self.laghima = LaghimaAgent()    # Paper search
             self.prapti = PraptiAgent()      # Repo management
-            self.garima = GarimaAgent()      # Analysis & metrics
-            self.isitva = IsitvaAgent()      # Data storage
-            self.vasitva = VasitvaAgent()    # UI handling
+            self.garima = GarimaAgent(str(self.data_dir))  # Analysis & metrics (with DB rules)
+            self.isitva = IsitvaAgent(str(self.data_dir))  # Data storage
             self.mahima = MahimaAgent()      # Backend ops
+            
+            # Initialize vasitva lazily to avoid circular import
+            self._vasitva = None
+            
             self.logger.info("All agents initialized successfully")
         except Exception as e:
             self.logger.error(f"Failed to initialize agents: {e}")
             raise
+    
+    @property
+    def vasitva(self):
+        """Lazy loading of Vasitva agent to avoid circular import"""
+        if self._vasitva is None:
+            from Vasitva import VasitvaAgent
+            self._vasitva = VasitvaAgent(str(self.data_dir))
+        return self._vasitva
     
     def analyze_pdf(self, pdf_path: str) -> Dict[str, Any]:
         """
@@ -114,6 +124,108 @@ class AnimaAgent:
         """Get summary of all analyses"""
         return self.isitva.get_analysis_summary()
     
+    def search_all_nearest_papers(self):
+        """CLI: python Anima.py --search-all"""
+        self.logger.info("Starting paper search for all 9 nearest star systems")
+        
+        # Get systems from Laghima agent
+        systems = self.laghima.NEAREST_SYSTEMS
+        
+        total_downloaded = 0
+        
+        for system in systems.keys():
+            try:
+                self.logger.info(f"Searching papers for {system}...")
+                papers = self.laghima.search_system_papers(system, 5)
+                print(f"✅ {system}: {len(papers)}/5 papers")
+                total_downloaded += len(papers)
+                
+                # Brief pause between systems
+                time.sleep(2)
+                
+            except Exception as e:
+                self.logger.error(f"Failed to search papers for {system}: {e}")
+                print(f"❌ {system}: Error occurred")
+        
+        print(f"\n🎉 TOTAL: {total_downloaded} papers downloaded across 9 systems")
+        return total_downloaded
+    
+    def inspect_all_systems(self):
+        """CLI: python Anima.py --inspect-all"""
+        self.logger.info("Inspecting all downloaded papers")
+        
+        systems = self.laghima.NEAREST_SYSTEMS
+        
+        for system, distance in systems.items():
+            try:
+                inspection = self.laghima.inspect_downloaded_papers(system)
+                self.print_crisp_table(system, distance, inspection)
+                
+            except Exception as e:
+                self.logger.error(f"Failed to inspect {system}: {e}")
+                print(f"❌ {system}: Inspection failed")
+        
+        return True
+    
+    def inspect_single_system(self, system: str):
+        """CLI: python Anima.py --inspect [system]"""
+        systems = self.laghima.NEAREST_SYSTEMS
+        
+        if system not in systems:
+            print(f"❌ System '{system}' not found. Available systems:")
+            for sys_name in systems.keys():
+                print(f"   - {sys_name}")
+            return False
+        
+        try:
+            inspection = self.laghima.inspect_downloaded_papers(system)
+            distance = systems[system]
+            self.print_crisp_table(system, distance, inspection)
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to inspect {system}: {e}")
+            print(f"❌ {system}: Inspection failed")
+            return False
+    
+    def print_crisp_table(self, system: str, distance: float, inspection: dict):
+        """Clean table output for CLI/UI"""
+        print(f"\n🪐 {system.upper()} ({distance} ly) - {inspection['total_papers']} PAPERS")
+        
+        if inspection['total_papers'] == 0:
+            print("   No papers found for this system")
+            return
+        
+        # Print table header
+        print("┌──────────────────┬────────┬──────────────┬──────────┐")
+        print("│ File             │ Pages  │ Chemicals    │ Priority │")
+        print("├──────────────────┼────────┼──────────────┼──────────┤")
+        
+        # Print each paper
+        for paper in inspection['papers']:
+            filename = paper['filename'][:15] + "..." if len(paper['filename']) > 18 else paper['filename']
+            pages = str(paper.get('pages', 'N/A'))
+            
+            # Format chemicals
+            chemicals = paper.get('chemicals', [])
+            chem_str = ','.join(chemicals[:3])  # First 3 chemicals
+            if len(chemicals) > 3:
+                chem_str += "..."
+            if len(chem_str) > 12:
+                chem_str = chem_str[:12] + "..."
+                
+            priority = paper.get('priority', 'LOW')
+            
+            print(f"│ {filename:<16} │ {pages:<6} │ {chem_str:<12} │ {priority:<8} │")
+        
+        print("└──────────────────┴────────┴──────────────┴──────────┘")
+        print(f"SUMMARY: {inspection['summary']}")
+        
+        # Show metrics if available
+        high_priority = [p for p in inspection['papers'] if p.get('priority') == 'HIGH']
+        if high_priority:
+            print(f"🔥 HIGH PRIORITY: {len(high_priority)} papers with key features")
+    
     def _update_unified_data(self, new_data: Dict[str, Any]):
         """Update the unified data file"""
         unified_data = []
@@ -149,11 +261,14 @@ def main():
     parser = argparse.ArgumentParser(description="Anima - Exoplanet Analysis Master Agent")
     parser.add_argument("--pdf", type=str, help="Path to PDF file for analysis")
     parser.add_argument("--search", nargs="+", help="Search terms for paper search")
+    parser.add_argument("--search-all", action="store_true", help="Search papers for all 9 nearest systems")
+    parser.add_argument("--inspect-all", action="store_true", help="Inspect all downloaded papers")
+    parser.add_argument("--inspect", type=str, help="Inspect specific system (e.g., 'Proxima Centauri')")
     parser.add_argument("--setup-repos", action="store_true", help="Setup GalSim/GREAT3 repositories")
     parser.add_argument("--ui", action="store_true", help="Start Streamlit UI")
     parser.add_argument("--api", action="store_true", help="Start FastAPI backend")
     parser.add_argument("--summary", action="store_true", help="Get analysis summary")
-    parser.add_argument("--data-dir", type=str, default="/data", help="Data directory path")
+    parser.add_argument("--data-dir", type=str, default="./data", help="Data directory path")
     
     args = parser.parse_args()
     
@@ -170,6 +285,18 @@ def main():
             # Search papers
             papers = anima.search_papers(args.search)
             print(json.dumps(papers, indent=2, default=str))
+            
+        elif args.search_all:
+            # Search all nearest systems
+            anima.search_all_nearest_papers()
+            
+        elif args.inspect_all:
+            # Inspect all systems
+            anima.inspect_all_systems()
+            
+        elif args.inspect:
+            # Inspect specific system
+            anima.inspect_single_system(args.inspect)
             
         elif args.setup_repos:
             # Setup repositories

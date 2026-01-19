@@ -15,7 +15,7 @@ import pandas as pd
 class IsitvaAgent:
     """Agent for unified data storage and management"""
     
-    def __init__(self, data_dir: str = "/data"):
+    def __init__(self, data_dir: str = "./data"):
         self.logger = logging.getLogger("Isitva")
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -131,9 +131,30 @@ class IsitvaAgent:
                     session_summary TEXT
                 )
             """)
-            
+
+            # Analysis rules table for customizable patterns
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS analysis_rules (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    category TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    display_name TEXT,
+                    patterns TEXT NOT NULL,
+                    description TEXT,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    priority INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT,
+                    UNIQUE(category, name)
+                )
+            """)
+
             conn.commit()
             conn.close()
+
+            # Initialize default rules if not present
+            self._initialize_default_rules()
+
             self.logger.info(f"Database initialized at {self.db_path}")
             
         except Exception as e:
@@ -535,20 +556,309 @@ class IsitvaAgent:
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+
             cursor.execute("DELETE FROM chemical_abundances")
             cursor.execute("DELETE FROM exoplanets")
             cursor.execute("DELETE FROM papers")
             cursor.execute("DELETE FROM analysis_sessions")
-            
+
             conn.commit()
             conn.close()
-            
+
             self.logger.warning("All data cleared from database")
-            
+
         except Exception as e:
             self.logger.error(f"Data clearing failed: {e}")
             raise
+
+    # ==================== RULES MANAGEMENT ====================
+
+    def _initialize_default_rules(self):
+        """Initialize default analysis rules if not present"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            # Check if rules already exist
+            cursor.execute("SELECT COUNT(*) FROM analysis_rules")
+            count = cursor.fetchone()[0]
+
+            if count == 0:
+                self.logger.info("Initializing default analysis rules...")
+                timestamp = datetime.now().isoformat()
+
+                # Default chemical species patterns
+                chemical_rules = [
+                    ('chemical_species', 'h2o', 'Water (H2O)', r'\bh2o\b|\bwater\b|h₂o', 'Detects water/H2O mentions', 1),
+                    ('chemical_species', 'h2s', 'Hydrogen Sulfide (H2S)', r'\bh2s\b|hydrogen\s+sulfide|h₂s', 'Detects H2S mentions', 2),
+                    ('chemical_species', 'so2', 'Sulfur Dioxide (SO2)', r'\bso2\b|sulfur\s+dioxide|so₂', 'Detects SO2 mentions', 3),
+                    ('chemical_species', 'h2', 'Hydrogen (H2)', r'\bh2\b(?!\w)|\bhydrogen\b(?!\s+sulfide)|h₂(?!\w)', 'Detects molecular hydrogen', 4),
+                    ('chemical_species', 'he', 'Helium (He)', r'\bhe\b(?!\w)|\bhelium\b|⁴he', 'Detects helium mentions', 5),
+                    ('chemical_species', 'ch4', 'Methane (CH4)', r'\bch4\b|\bmethane\b|ch₄', 'Detects methane mentions', 6),
+                    ('chemical_species', 'co2', 'Carbon Dioxide (CO2)', r'\bco2\b|carbon\s+dioxide|co₂', 'Detects CO2 mentions', 7),
+                    ('chemical_species', 'co', 'Carbon Monoxide (CO)', r'\bco\b(?!\w)|carbon\s+monoxide', 'Detects CO mentions', 8),
+                    ('chemical_species', 'nh3', 'Ammonia (NH3)', r'\bnh3\b|\bammonia\b|nh₃', 'Detects ammonia mentions', 9),
+                    ('chemical_species', 'n2', 'Nitrogen (N2)', r'\bn2\b(?!\w)|\bnitrogen\b|n₂', 'Detects nitrogen mentions', 10),
+                    ('chemical_species', 'sulfur', 'Sulfur (S)', r'\bsulfur\b|\bs\b(?=\s+species)|\bsulphur\b', 'Detects sulfur mentions', 11),
+                ]
+
+                # Detection method patterns
+                detection_rules = [
+                    ('detection_methods', 'transit', 'Transit Method', r'\btransit\b|transit\s+photometry|transit\s+detection', 'Detects transit method mentions', 1),
+                    ('detection_methods', 'radial_velocity', 'Radial Velocity', r'radial\s+velocity|\brv\b|doppler\s+shift', 'Detects RV method mentions', 2),
+                    ('detection_methods', 'direct_imaging', 'Direct Imaging', r'direct\s+imaging|coronagraph', 'Detects direct imaging mentions', 3),
+                    ('detection_methods', 'astrometry', 'Astrometry', r'\bastrometry\b|astrometric', 'Detects astrometry method', 4),
+                    ('detection_methods', 'gravitational_lensing', 'Gravitational Lensing', r'gravitational\s+lensing|microlensing', 'Detects lensing method', 5),
+                ]
+
+                # Habitable zone patterns
+                hz_rules = [
+                    ('habitable_zone', 'hz_keywords', 'Habitable Zone Keywords', r'habitable\s+zone|goldilocks\s+zone|\bhz\b|potentially\s+habitable', 'Detects HZ keywords', 1),
+                    ('habitable_zone', 'insolation', 'Insolation Pattern', r'insolation\s*=?\s*(\d+\.?\d*)\s*(s_earth|earth)', 'Extracts insolation values', 2),
+                    ('habitable_zone', 'stellar_flux', 'Stellar Flux', r'stellar\s+flux\s*=?\s*(\d+\.?\d*)', 'Extracts stellar flux', 3),
+                ]
+
+                # Radial velocity extraction patterns
+                rv_rules = [
+                    ('rv_patterns', 'k_velocity', 'K Velocity', r'k\s*=?\s*(\d+\.?\d*)\s*(m/s|ms⁻¹|m\s*s⁻¹)', 'Extracts K velocity', 1),
+                    ('rv_patterns', 'rv_amplitude', 'RV Amplitude', r'radial\s+velocity\s+amplitude\s*=?\s*(\d+\.?\d*)\s*(m/s)', 'Extracts RV amplitude', 2),
+                    ('rv_patterns', 'period', 'Orbital Period', r'period\s*=?\s*(\d+\.?\d*)\s*(days?|d\b)', 'Extracts orbital period', 3),
+                    ('rv_patterns', 'eccentricity', 'Eccentricity', r'eccentricity\s*=?\s*(\d+\.?\d*)', 'Extracts eccentricity', 4),
+                ]
+
+                # Transit patterns
+                transit_rules = [
+                    ('transit_patterns', 'depth', 'Transit Depth', r'transit\s+depth\s*=?\s*(\d+\.?\d*(?:[eE][+-]?\d+)?)\s*(%|ppm|mmag)', 'Extracts transit depth', 1),
+                    ('transit_patterns', 'radius_ratio', 'Radius Ratio', r'r[_p]?/r[_\*]?\s*=?\s*(\d+\.?\d*)', 'Extracts Rp/Rs ratio', 2),
+                    ('transit_patterns', 'planet_radius', 'Planet Radius', r'planet\s+radius\s*=?\s*(\d+\.?\d*)\s*(r_earth|earth\s+radii|r_⊕)', 'Extracts planet radius', 3),
+                ]
+
+                # Planetary properties patterns
+                planetary_rules = [
+                    ('planetary_properties', 'mass', 'Planet Mass', r'mass\s*=?\s*(\d+\.?\d*)\s*(m_earth|earth\s+masses|m_⊕)', 'Extracts planet mass', 1),
+                    ('planetary_properties', 'radius', 'Planet Radius', r'radius\s*=?\s*(\d+\.?\d*)\s*(r_earth|earth\s+radii|r_⊕)', 'Extracts planet radius', 2),
+                    ('planetary_properties', 'temperature', 'Temperature', r'temperature\s*=?\s*(\d+\.?\d*)\s*k', 'Extracts temperature', 3),
+                    ('planetary_properties', 'density', 'Density', r'density\s*=?\s*(\d+\.?\d*)\s*(g/cm|kg/m)', 'Extracts density', 4),
+                ]
+
+                # Unique materials patterns
+                unique_rules = [
+                    ('unique_materials', 'tio2', 'Titanium Oxide', r'\btio2\b|titanium\s+oxide', 'Detects TiO2', 1),
+                    ('unique_materials', 'vo', 'Vanadium Oxide', r'\bvo\b|vanadium\s+oxide', 'Detects VO', 2),
+                    ('unique_materials', 'na', 'Sodium', r'\bna\b|sodium', 'Detects sodium', 3),
+                    ('unique_materials', 'k', 'Potassium', r'\bk\b|potassium', 'Detects potassium', 4),
+                    ('unique_materials', 'fe', 'Iron', r'\bfe\b|iron', 'Detects iron', 5),
+                    ('unique_materials', 'clouds', 'Clouds/Hazes', r'clouds?|hazes?|aerosols?', 'Detects cloud mentions', 6),
+                ]
+
+                all_rules = chemical_rules + detection_rules + hz_rules + rv_rules + transit_rules + planetary_rules + unique_rules
+
+                for category, name, display_name, patterns, description, priority in all_rules:
+                    cursor.execute("""
+                        INSERT INTO analysis_rules (category, name, display_name, patterns, description, is_active, priority, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (category, name, display_name, patterns, description, True, priority, timestamp))
+
+                conn.commit()
+                self.logger.info(f"Initialized {len(all_rules)} default rules")
+
+            conn.close()
+
+        except Exception as e:
+            self.logger.error(f"Failed to initialize default rules: {e}")
+
+    def get_all_rules(self) -> List[Dict[str, Any]]:
+        """Get all analysis rules"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            df = pd.read_sql_query("""
+                SELECT * FROM analysis_rules
+                ORDER BY category, priority
+            """, conn)
+            conn.close()
+            return df.to_dict('records')
+        except Exception as e:
+            self.logger.error(f"Failed to get rules: {e}")
+            return []
+
+    def get_rules_by_category(self, category: str) -> List[Dict[str, Any]]:
+        """Get rules by category"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            df = pd.read_sql_query("""
+                SELECT * FROM analysis_rules
+                WHERE category = ? AND is_active = 1
+                ORDER BY priority
+            """, conn, params=[category])
+            conn.close()
+            return df.to_dict('records')
+        except Exception as e:
+            self.logger.error(f"Failed to get rules for {category}: {e}")
+            return []
+
+    def get_rule_categories(self) -> List[str]:
+        """Get list of unique rule categories"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT category FROM analysis_rules ORDER BY category")
+            categories = [row[0] for row in cursor.fetchall()]
+            conn.close()
+            return categories
+        except Exception as e:
+            self.logger.error(f"Failed to get categories: {e}")
+            return []
+
+    def add_rule(self, category: str, name: str, patterns: str,
+                 display_name: str = None, description: str = None,
+                 priority: int = 1) -> int:
+        """Add a new analysis rule"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            timestamp = datetime.now().isoformat()
+            display_name = display_name or name.replace('_', ' ').title()
+
+            cursor.execute("""
+                INSERT INTO analysis_rules (category, name, display_name, patterns, description, is_active, priority, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (category, name, display_name, patterns, description, True, priority, timestamp))
+
+            rule_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+
+            self.logger.info(f"Added rule: {name} in category {category}")
+            return rule_id
+
+        except sqlite3.IntegrityError:
+            self.logger.error(f"Rule {name} already exists in category {category}")
+            return -1
+        except Exception as e:
+            self.logger.error(f"Failed to add rule: {e}")
+            return -1
+
+    def update_rule(self, rule_id: int, patterns: str = None, display_name: str = None,
+                    description: str = None, is_active: bool = None, priority: int = None) -> bool:
+        """Update an existing rule"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            updates = []
+            params = []
+
+            if patterns is not None:
+                updates.append("patterns = ?")
+                params.append(patterns)
+            if display_name is not None:
+                updates.append("display_name = ?")
+                params.append(display_name)
+            if description is not None:
+                updates.append("description = ?")
+                params.append(description)
+            if is_active is not None:
+                updates.append("is_active = ?")
+                params.append(is_active)
+            if priority is not None:
+                updates.append("priority = ?")
+                params.append(priority)
+
+            if updates:
+                updates.append("updated_at = ?")
+                params.append(datetime.now().isoformat())
+                params.append(rule_id)
+
+                cursor.execute(f"""
+                    UPDATE analysis_rules
+                    SET {', '.join(updates)}
+                    WHERE id = ?
+                """, params)
+
+                conn.commit()
+
+            conn.close()
+            self.logger.info(f"Updated rule ID {rule_id}")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Failed to update rule: {e}")
+            return False
+
+    def delete_rule(self, rule_id: int) -> bool:
+        """Delete a rule by ID"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("DELETE FROM analysis_rules WHERE id = ?", (rule_id,))
+            conn.commit()
+            conn.close()
+
+            self.logger.info(f"Deleted rule ID {rule_id}")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Failed to delete rule: {e}")
+            return False
+
+    def toggle_rule(self, rule_id: int) -> bool:
+        """Toggle rule active status"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE analysis_rules
+                SET is_active = NOT is_active, updated_at = ?
+                WHERE id = ?
+            """, (datetime.now().isoformat(), rule_id))
+
+            conn.commit()
+            conn.close()
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Failed to toggle rule: {e}")
+            return False
+
+    def reset_rules_to_default(self) -> bool:
+        """Reset all rules to default values"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("DELETE FROM analysis_rules")
+            conn.commit()
+            conn.close()
+
+            self._initialize_default_rules()
+            self.logger.info("Rules reset to default")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Failed to reset rules: {e}")
+            return False
+
+    def get_chemical_patterns(self) -> Dict[str, List[str]]:
+        """Get chemical patterns in format for Garima agent"""
+        rules = self.get_rules_by_category('chemical_species')
+        patterns = {}
+        for rule in rules:
+            pattern_list = rule['patterns'].split('|')
+            patterns[rule['name']] = pattern_list
+        return patterns
+
+    def get_detection_patterns(self) -> Dict[str, List[str]]:
+        """Get detection method patterns"""
+        rules = self.get_rules_by_category('detection_methods')
+        patterns = {}
+        for rule in rules:
+            pattern_list = rule['patterns'].split('|')
+            patterns[rule['name']] = pattern_list
+        return patterns
+
 
 def main():
     """Test the Isitva agent"""

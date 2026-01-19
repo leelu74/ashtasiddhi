@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   exoplanet-analysis:
     build: .
@@ -9,6 +7,7 @@ services:
     volumes:
       - ./data:/data
       - ./pdfs:/app/pdfs:ro  # Mount PDFs read-only
+      - ./Researchpdfs:/app/Researchpdfs:ro  # Mount Research PDFs
     environment:
       - DATA_DIR=/data
       - PYTHONPATH=/app
@@ -20,6 +19,7 @@ services:
       - "8502:8501"
     volumes:
       - ./data:/data
+      - ./Researchpdfs:/app/Researchpdfs:ro
     environment:
       - DATA_DIR=/data
       - PYTHONPATH=/app

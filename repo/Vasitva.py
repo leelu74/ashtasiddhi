@@ -17,30 +17,31 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# Import other agents
-from Anima import AnimaAgent
+# Import other agents (avoid circular import with Anima)
 from Isitva import IsitvaAgent
 from Garima import GarimaAgent
 
 class VasitvaAgent:
     """Agent for Streamlit UI and data visualization"""
     
-    def __init__(self, data_dir: str = "/data"):
+    def __init__(self, data_dir: str = "./data"):
         self.logger = logging.getLogger("Vasitva")
         self.data_dir = Path(data_dir)
         
-        # Initialize other agents
-        self.anima = AnimaAgent(data_dir)
+        # Initialize agents directly (avoid circular import)
         self.isitva = IsitvaAgent(data_dir)
         self.garima = GarimaAgent()
         
-        # Configure Streamlit
-        st.set_page_config(
-            page_title="Exoplanet Analysis Dashboard",
-            page_icon="🪐",
-            layout="wide",
-            initial_sidebar_state="expanded"
-        )
+        # Create Anima agent lazily when needed to avoid circular import
+        self._anima = None
+    
+    @property
+    def anima(self):
+        """Lazy loading of Anima agent to avoid circular import"""
+        if self._anima is None:
+            from Anima import AnimaAgent
+            self._anima = AnimaAgent(str(self.data_dir))
+        return self._anima
     
     def start_ui(self, host: str = "0.0.0.0", port: int = 8501):
         """Start the Streamlit UI"""
@@ -48,13 +49,21 @@ class VasitvaAgent:
     
     def run_dashboard(self):
         """Main dashboard interface"""
+        # Configure Streamlit
+        st.set_page_config(
+            page_title="Exoplanet Analysis Dashboard",
+            page_icon="🪐",
+            layout="wide",
+            initial_sidebar_state="expanded"
+        )
+        
         # Sidebar navigation
         st.sidebar.title("🪐 Exoplanet Analysis")
         page = st.sidebar.radio(
             "Navigate to:",
-            ["Dashboard", "PDF Analysis", "Paper Search", "Data Explorer", "Simulations"]
+            ["Dashboard", "PDF Analysis", "Paper Search", "Data Explorer", "Rules Manager", "Simulations"]
         )
-        
+
         if page == "Dashboard":
             self.show_main_dashboard()
         elif page == "PDF Analysis":
@@ -63,6 +72,8 @@ class VasitvaAgent:
             self.show_paper_search()
         elif page == "Data Explorer":
             self.show_data_explorer()
+        elif page == "Rules Manager":
+            self.show_rules_manager()
         elif page == "Simulations":
             self.show_simulations()
     
@@ -147,10 +158,14 @@ class VasitvaAgent:
                         try:
                             # Run analysis
                             results = self.anima.analyze_pdf(str(temp_path))
-                            
+
+                            # Display results - extract analysis from nested structure
+                            analysis_data = results.get('analysis', results)
+                            keywords_data = results.get('keywords', {})
+
                             # Display results
-                            self._display_analysis_results(results)
-                            
+                            self._display_analysis_results(analysis_data, keywords_data)
+
                             st.success("Analysis completed!")
                             
                         except Exception as e:
@@ -335,17 +350,245 @@ class VasitvaAgent:
                         
                 except Exception as e:
                     st.error(f"Simulation error: {str(e)}")
-    
-    def _display_analysis_results(self, results: Dict[str, Any]):
+
+    def show_rules_manager(self):
+        """Rules management interface for customizing analysis patterns"""
+        st.title("⚙️ Rules Manager")
+        st.markdown("Manage the patterns and keywords used for PDF analysis")
+
+        # Get all rules from database
+        all_rules = self.isitva.get_all_rules()
+        categories = self.isitva.get_rule_categories()
+
+        # Sidebar for category filter
+        with st.sidebar:
+            st.markdown("### Filter Rules")
+            selected_category = st.selectbox(
+                "Category",
+                ["All"] + categories,
+                help="Filter rules by category"
+            )
+
+            st.markdown("---")
+            st.markdown("### Quick Actions")
+            if st.button("🔄 Reset to Defaults", help="Reset all rules to default values"):
+                if self.isitva.reset_rules_to_default():
+                    st.success("Rules reset to defaults!")
+                    st.rerun()
+
+        # Main content area
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            st.markdown("### Current Analysis Rules")
+
+            # Filter rules by category
+            if selected_category != "All":
+                filtered_rules = [r for r in all_rules if r['category'] == selected_category]
+            else:
+                filtered_rules = all_rules
+
+            if not filtered_rules:
+                st.info("No rules found. Add a new rule below.")
+            else:
+                # Group rules by category
+                rules_by_category = {}
+                for rule in filtered_rules:
+                    cat = rule['category']
+                    if cat not in rules_by_category:
+                        rules_by_category[cat] = []
+                    rules_by_category[cat].append(rule)
+
+                # Display rules in expandable sections
+                for category, rules in rules_by_category.items():
+                    category_display = category.replace('_', ' ').title()
+                    with st.expander(f"📁 {category_display} ({len(rules)} rules)", expanded=True):
+                        for rule in rules:
+                            col_name, col_pattern, col_actions = st.columns([2, 4, 2])
+
+                            with col_name:
+                                status = "✅" if rule['is_active'] else "❌"
+                                st.markdown(f"**{status} {rule['display_name']}**")
+                                st.caption(f"ID: {rule['id']}")
+
+                            with col_pattern:
+                                st.code(rule['patterns'], language=None)
+                                if rule['description']:
+                                    st.caption(rule['description'])
+
+                            with col_actions:
+                                # Toggle active status
+                                if st.button("Toggle", key=f"toggle_{rule['id']}"):
+                                    self.isitva.toggle_rule(rule['id'])
+                                    st.rerun()
+
+                                # Delete button
+                                if st.button("🗑️", key=f"delete_{rule['id']}", help="Delete rule"):
+                                    self.isitva.delete_rule(rule['id'])
+                                    st.success(f"Deleted rule: {rule['name']}")
+                                    st.rerun()
+
+                        st.markdown("---")
+
+        with col2:
+            st.markdown("### Add New Rule")
+
+            with st.form("add_rule_form"):
+                new_category = st.selectbox(
+                    "Category",
+                    categories if categories else ["chemical_species"],
+                    help="Select the rule category"
+                )
+
+                # Option to create new category
+                new_category_input = st.text_input(
+                    "Or create new category",
+                    placeholder="e.g., stellar_properties",
+                    help="Enter a new category name (optional)"
+                )
+
+                new_name = st.text_input(
+                    "Rule Name *",
+                    placeholder="e.g., oxygen",
+                    help="Unique identifier for this rule (lowercase, no spaces)"
+                )
+
+                new_display = st.text_input(
+                    "Display Name",
+                    placeholder="e.g., Oxygen (O2)",
+                    help="Human-readable name"
+                )
+
+                new_patterns = st.text_area(
+                    "Patterns (regex) *",
+                    placeholder=r"\bo2\b|\boxygen\b|o₂",
+                    help="Regex patterns separated by | (pipe)"
+                )
+
+                new_description = st.text_input(
+                    "Description",
+                    placeholder="Detects oxygen mentions in text"
+                )
+
+                new_priority = st.number_input(
+                    "Priority",
+                    min_value=1,
+                    max_value=100,
+                    value=1,
+                    help="Lower = higher priority"
+                )
+
+                submitted = st.form_submit_button("➕ Add Rule")
+
+                if submitted:
+                    if not new_name or not new_patterns:
+                        st.error("Name and Patterns are required!")
+                    else:
+                        category_to_use = new_category_input if new_category_input else new_category
+                        result = self.isitva.add_rule(
+                            category=category_to_use,
+                            name=new_name.lower().replace(' ', '_'),
+                            patterns=new_patterns,
+                            display_name=new_display or new_name,
+                            description=new_description,
+                            priority=new_priority
+                        )
+                        if result > 0:
+                            st.success(f"Added rule: {new_name}")
+                            st.rerun()
+                        else:
+                            st.error("Failed to add rule. Name may already exist.")
+
+            # Edit existing rule section
+            st.markdown("### Edit Existing Rule")
+
+            if all_rules:
+                rule_options = {f"{r['display_name']} ({r['category']})": r['id'] for r in all_rules}
+                selected_rule_name = st.selectbox(
+                    "Select rule to edit",
+                    list(rule_options.keys())
+                )
+
+                if selected_rule_name:
+                    selected_rule_id = rule_options[selected_rule_name]
+                    selected_rule = next((r for r in all_rules if r['id'] == selected_rule_id), None)
+
+                    if selected_rule:
+                        with st.form("edit_rule_form"):
+                            edit_display = st.text_input(
+                                "Display Name",
+                                value=selected_rule['display_name']
+                            )
+
+                            edit_patterns = st.text_area(
+                                "Patterns",
+                                value=selected_rule['patterns']
+                            )
+
+                            edit_description = st.text_input(
+                                "Description",
+                                value=selected_rule['description'] or ""
+                            )
+
+                            edit_priority = st.number_input(
+                                "Priority",
+                                min_value=1,
+                                max_value=100,
+                                value=selected_rule['priority']
+                            )
+
+                            edit_submitted = st.form_submit_button("💾 Update Rule")
+
+                            if edit_submitted:
+                                success = self.isitva.update_rule(
+                                    selected_rule_id,
+                                    patterns=edit_patterns,
+                                    display_name=edit_display,
+                                    description=edit_description,
+                                    priority=edit_priority
+                                )
+                                if success:
+                                    st.success("Rule updated!")
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to update rule")
+
+        # Rules summary at bottom
+        st.markdown("---")
+        st.markdown("### Rules Summary")
+
+        summary_cols = st.columns(len(categories) if categories else 1)
+        for i, cat in enumerate(categories):
+            cat_rules = [r for r in all_rules if r['category'] == cat]
+            active_count = len([r for r in cat_rules if r['is_active']])
+            with summary_cols[i % len(summary_cols)]:
+                st.metric(
+                    cat.replace('_', ' ').title(),
+                    f"{active_count}/{len(cat_rules)} active"
+                )
+
+    def _display_analysis_results(self, results: Dict[str, Any], keywords: Dict[str, Any] = None):
         """Display PDF analysis results"""
         # Summary metrics
         st.markdown("### Analysis Summary")
-        
+
         col1, col2, col3 = st.columns(3)
-        
+
         composition = results.get('chemical_composition', {})
         hz_data = results.get('habitable_zone', {})
         metrics = results.get('computed_metrics', {})
+
+        # Merge keywords into composition if available
+        if keywords:
+            # Add atmospheric compounds from keywords
+            keyword_compounds = keywords.get('atmospheric_compounds', [])
+            existing_species = composition.get('detected_species', [])
+            all_species = list(set(existing_species + keyword_compounds))
+            composition['detected_species'] = all_species
+
+            # Update metrics based on merged data
+            if all_species:
+                metrics['atmospheric_detectability'] = len(all_species) / 10.0
         
         with col1:
             species_count = len(composition.get('detected_species', []))
@@ -360,49 +603,135 @@ class VasitvaAgent:
             st.metric("Habitability Index", f"{hab_index:.2f}")
         
         # Detailed results in tabs
-        tab1, tab2, tab3, tab4 = st.tabs(["Chemical Composition", "Detection Methods", "Habitability", "Raw Data"])
-        
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["Chemical Composition", "Keywords", "Detection Methods", "Habitability", "Raw Data"])
+
         with tab1:
             detected = composition.get('detected_species', [])
+            unique_materials = composition.get('unique_materials', [])
+
             if detected:
-                st.markdown("**Detected Species:**")
-                for species in detected:
-                    st.markdown(f"- {species.upper()}")
-                
+                st.markdown("**Detected Chemical Species:**")
+                cols = st.columns(3)
+                for i, species in enumerate(detected):
+                    with cols[i % 3]:
+                        st.success(f"**{species.upper()}**")
+
                 abundances = composition.get('abundances', {})
                 if abundances:
                     st.markdown("**Abundances:**")
                     for species, data in abundances.items():
                         st.markdown(f"- {species}: {data['value']} {data['unit']}")
             else:
-                st.info("No chemical species detected")
-        
+                st.info("No chemical species detected in this paper")
+
+            if unique_materials:
+                st.markdown("**Unique Materials Detected:**")
+                st.write(", ".join([m.upper() for m in unique_materials]))
+
         with tab2:
+            if keywords:
+                st.markdown("**Extracted Keywords by Category:**")
+
+                # Detection methods
+                detection_methods = keywords.get('detection_methods', [])
+                if detection_methods:
+                    st.markdown("**Detection Methods:**")
+                    st.write(", ".join(detection_methods))
+
+                # Atmospheric compounds
+                atm_compounds = keywords.get('atmospheric_compounds', [])
+                if atm_compounds:
+                    st.markdown("**Atmospheric Compounds:**")
+                    st.write(", ".join([c.upper() for c in atm_compounds]))
+
+                # Planetary properties
+                planet_props = keywords.get('planetary_properties', [])
+                if planet_props:
+                    st.markdown("**Planetary Properties:**")
+                    st.write(", ".join(planet_props))
+
+                # Habitable zone keywords
+                hz_keywords = keywords.get('habitable_zone', [])
+                if hz_keywords:
+                    st.markdown("**Habitable Zone Keywords:**")
+                    st.write(", ".join(hz_keywords))
+
+                # Stellar properties
+                stellar_props = keywords.get('stellar_properties', [])
+                if stellar_props:
+                    st.markdown("**Stellar Properties:**")
+                    st.write(", ".join(stellar_props))
+
+                # Key phrases
+                key_phrases = keywords.get('key_phrases', [])
+                if key_phrases:
+                    st.markdown("**Key Phrases (Top 10):**")
+                    for phrase in key_phrases[:10]:
+                        st.markdown(f"- {phrase}")
+            else:
+                st.info("No keywords extracted")
+
+        with tab3:
             rv_data = results.get('radial_velocity', {})
             transit_data = results.get('transit_analysis', {})
-            
+            confidence = results.get('detection_confidence', {})
+
+            methods_used = confidence.get('methods_used', [])
+            if methods_used:
+                st.markdown("**Detection Methods Used:**")
+                for method in methods_used:
+                    st.markdown(f"- {method.replace('_', ' ').title()}")
+
             if rv_data.get('k_velocity'):
                 st.markdown("**Radial Velocity Detection:**")
                 st.markdown(f"- K velocity: {rv_data['k_velocity']:.2f} m/s")
                 if rv_data.get('minimum_mass'):
                     st.markdown(f"- Minimum mass: {rv_data['minimum_mass']:.2f} Earth masses")
-            
+                if rv_data.get('period'):
+                    st.markdown(f"- Period: {rv_data['period']:.2f} days")
+
             if transit_data.get('depth'):
                 st.markdown("**Transit Detection:**")
                 st.markdown(f"- Transit depth: {transit_data['depth']:.6f}")
                 if transit_data.get('radius_ratio'):
                     st.markdown(f"- Radius ratio: {transit_data['radius_ratio']:.3f}")
-        
-        with tab3:
+                if transit_data.get('planet_radius'):
+                    st.markdown(f"- Planet radius: {transit_data['planet_radius']:.2f} Earth radii")
+
+            if not methods_used and not rv_data.get('k_velocity') and not transit_data.get('depth'):
+                st.info("No specific detection method data found")
+
+        with tab4:
+            st.markdown("**Habitable Zone Analysis:**")
+            st.markdown(f"**In Habitable Zone:** {'Yes ✅' if is_habitable else 'No ❌'}")
+
             if hz_data.get('insolation'):
                 st.markdown(f"**Insolation:** {hz_data['insolation']:.2f} S⊕")
             if hz_data.get('effective_temperature'):
                 st.markdown(f"**Effective Temperature:** {hz_data['effective_temperature']:.1f} K")
-            
-            st.markdown(f"**In Habitable Zone:** {'Yes' if is_habitable else 'No'}")
-        
-        with tab4:
+            if hz_data.get('semi_major_axis'):
+                st.markdown(f"**Semi-major Axis:** {hz_data['semi_major_axis']:.3f} AU")
+
+            # Show habitability index breakdown
+            st.markdown("**Habitability Metrics:**")
+            hab_index = metrics.get('habitability_index', 0)
+            atm_detect = metrics.get('atmospheric_detectability', 0)
+            confirm_score = metrics.get('confirmation_score', 0)
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Habitability Index", f"{hab_index:.2f}")
+            with col2:
+                st.metric("Atm. Detectability", f"{atm_detect:.2f}")
+            with col3:
+                st.metric("Confirmation Score", f"{confirm_score:.2f}")
+
+        with tab5:
+            st.markdown("**Analysis Results:**")
             st.json(results)
+            if keywords:
+                st.markdown("**Keywords Data:**")
+                st.json(keywords)
     
     def _display_simulation_results(self, results: Dict[str, Any]):
         """Display simulation results with plots"""
