@@ -1,0 +1,999 @@
+[
+  {
+    "pdf_path": "data/temp/nepalPrajwal.pdf",
+    "keywords": {
+      "detection_methods": [
+        "transit"
+      ],
+      "atmospheric_compounds": [
+        "h2",
+        "so2",
+        "ch4",
+        "co2",
+        "co",
+        "he",
+        "water",
+        "helium",
+        "h2o",
+        "hydrogen",
+        "sulfur",
+        "n2",
+        "carbon dioxide",
+        "h2s"
+      ],
+      "planetary_properties": [
+        "radius",
+        "temperature",
+        "mass"
+      ],
+      "habitable_zone": [],
+      "stellar_properties": [
+        "metallicity"
+      ],
+      "chemical_abundances": [],
+      "key_phrases": [
+        "exoplanet community early release science team et al",
+        "exoplanet transmission spectra",
+        "canonical pu y saturn-sized planet faedi et al",
+        "hours transit",
+        "rst jwst exoplanet spectrum",
+        "hydrogen helium-dominated atmospheres",
+        "exoplanetary spectra",
+        "rst jwst exoplanet transmission spectrum",
+        "terrestrial atmospheres",
+        "exoplanet atmospheres",
+        "exoplanetary atmospheres",
+        "large hot high-metallicity atmospheres such",
+        "https github.com disruptiveplanets tierra.mospheric parameters",
+        "pu y atmospheres",
+        "planetary sciences"
+      ],
+      "abstract_concepts": [
+        "opacity",
+        "accuracy",
+        "models",
+        "wall",
+        "jwst",
+        "highlighted",
+        "exoplanet",
+        "transmission",
+        "atmospheric",
+        "properties",
+        "retrieval",
+        "spectrum",
+        "mostly",
+        "line",
+        "lists"
+      ]
+    },
+    "analysis": {
+      "pdf_path": "data/temp/nepalPrajwal.pdf",
+      "chemical_composition": {
+        "detected_species": [
+          "h2o",
+          "h2s",
+          "so2",
+          "h2",
+          "he",
+          "ch4",
+          "co2",
+          "co",
+          "n2",
+          "sulfur"
+        ],
+        "abundances": {},
+        "unique_materials": [
+          "vo",
+          "na",
+          "k",
+          "fe",
+          "al",
+          "si",
+          "cloud"
+        ]
+      },
+      "radial_velocity": {
+        "k_velocity": null,
+        "period": null,
+        "eccentricity": 0.5,
+        "mass_function": null,
+        "minimum_mass": null,
+        "detection_method": null
+      },
+      "transit_analysis": {
+        "depth": null,
+        "radius_ratio": null,
+        "planet_radius": null,
+        "period": null,
+        "duration": null,
+        "detection_method": "transit"
+      },
+      "habitable_zone": {
+        "in_habitable_zone": false,
+        "insolation": null,
+        "effective_temperature": null,
+        "semi_major_axis": null,
+        "stellar_luminosity": null,
+        "hz_inner_edge": null,
+        "hz_outer_edge": null
+      },
+      "planetary_properties": {},
+      "stellar_properties": {
+        "temperature": 900.0
+      },
+      "detection_confidence": {
+        "detection_significance": null,
+        "false_alarm_probability": null,
+        "confirmation_status": null,
+        "methods_used": [
+          "transit",
+          "radial_velocity"
+        ]
+      },
+      "computed_metrics": {
+        "atmospheric_detectability": 1.0,
+        "confirmation_score": 0.6666666666666666,
+        "habitability_index": 0.26666666666666666
+      }
+    },
+    "storage_id": 1,
+    "timestamp": "2026-01-12T16:23:34.589550"
+  },
+  {
+    "pdf_path": "data/temp/1pdf.pdf",
+    "keywords": {
+      "detection_methods": [
+        "transit"
+      ],
+      "atmospheric_compounds": [
+        "he",
+        "water",
+        "co"
+      ],
+      "planetary_properties": [
+        "temperature",
+        "mass",
+        "period"
+      ],
+      "habitable_zone": [],
+      "stellar_properties": [
+        "metallicity"
+      ],
+      "chemical_abundances": [],
+      "key_phrases": [
+        "keck planet imager",
+        "non-transiting hot jupiter",
+        "extrasolar planets",
+        "non-transiting planets",
+        "close-in giant exoplanets",
+        "hot jupiter atmospheres",
+        "exoplanet science moves"
+      ],
+      "abstract_concepts": [
+        "jupiter",
+        "kpic",
+        "characterization",
+        "atmospheric",
+        "jupiters",
+        "michael",
+        "hrccs",
+        "keck",
+        "atmospheres",
+        "using",
+        "spectroscopy",
+        "finnerty",
+        "enabling",
+        "first",
+        "emission"
+      ]
+    },
+    "analysis": {
+      "pdf_path": "data/temp/1pdf.pdf",
+      "chemical_composition": {
+        "detected_species": [
+          "h2o",
+          "he",
+          "co"
+        ],
+        "abundances": {},
+        "unique_materials": [
+          "vo",
+          "na",
+          "k",
+          "fe",
+          "al",
+          "si",
+          "clouds"
+        ]
+      },
+      "radial_velocity": {
+        "k_velocity": null,
+        "period": null,
+        "eccentricity": 6.0,
+        "mass_function": null,
+        "minimum_mass": null,
+        "detection_method": null
+      },
+      "transit_analysis": {
+        "depth": null,
+        "radius_ratio": null,
+        "planet_radius": null,
+        "period": null,
+        "duration": null,
+        "detection_method": "transit"
+      },
+      "habitable_zone": {
+        "in_habitable_zone": false,
+        "insolation": null,
+        "effective_temperature": null,
+        "semi_major_axis": null,
+        "stellar_luminosity": null,
+        "hz_inner_edge": null,
+        "hz_outer_edge": null
+      },
+      "planetary_properties": {},
+      "stellar_properties": {},
+      "detection_confidence": {
+        "detection_significance": null,
+        "false_alarm_probability": null,
+        "confirmation_status": null,
+        "methods_used": [
+          "transit",
+          "radial_velocity"
+        ]
+      },
+      "computed_metrics": {
+        "atmospheric_detectability": 0.3,
+        "confirmation_score": 0.6666666666666666,
+        "habitability_index": 0.26666666666666666
+      }
+    },
+    "storage_id": 2,
+    "timestamp": "2026-01-12T16:30:58.237183"
+  },
+  {
+    "pdf_path": "data/temp/NasedkinPhDThesis2024.pdf",
+    "keywords": {
+      "detection_methods": [
+        "transit",
+        "radial velocity",
+        "direct imaging",
+        "rv",
+        "astrometry"
+      ],
+      "atmospheric_compounds": [
+        "h2",
+        "so2",
+        "ch4",
+        "co2",
+        "co",
+        "he",
+        "water",
+        "methane",
+        "helium",
+        "h2o",
+        "hydrogen",
+        "nitrogen",
+        "nh3",
+        "h2s"
+      ],
+      "planetary_properties": [
+        "mass",
+        "period",
+        "radius",
+        "density",
+        "temperature"
+      ],
+      "habitable_zone": [
+        "stellar flux"
+      ],
+      "stellar_properties": [
+        "age",
+        "metallicity"
+      ],
+      "chemical_abundances": [],
+      "key_phrases": [
+        "observationshaverevealedastaggeringdiversityofexoplanetsintermsoftheir size temperature andcomposition",
+        "anditwillbethetaskofthenext yearsanddecadestotrulyanswerthoseearlyquestionsaboutourplaceamong thestars",
+        "inordertoobservetheseplanets theymustretainenough heatfromtheirformationtobeobservableinthermalemission",
+        "iv four-of-a-kind systematiccharacterisationofthehr8799 planetswithvlti gravity",
+        "fromthe firsttentativesignsofthepresenceofanatmospheretothedetailedcharacteri- sationperformedtoday",
+        "dieplaneten werdenmitdem petitradtrans",
+        "planetsunderinvestigation andthelinksbetweenobservationsandatmospheric models",
+        "umdieseplaneten beobachtenzuk\u00f6nnen m\u00fcssensiegen\u00fcgendw\u00e4rmevonihrerentstehung bewahren umdurchihrethermischenemissionbeobachtbarzusein",
+        "hr8799a thehoststar",
+        "radial velocity theradialvelocitytechniquereliesonthedopplershiftofthestellarspec- truminducedbythegravitationalpulloftheplanetonthehoststar",
+        "exoplanetsarechal- lengingtoobserve",
+        "toidentifywidelyseparatedcompanionsorhigh-resolutionspectroscopyto characterisetheatmospheresofhotjupiters havealsoprovidedsignificantin- sightintotheexoplanetpopulationbutarenotdirectlyrelevanttothiswork",
+        "wearejustnowabletomeasuresomeexoplanetpropertieswithsimilar precisiontothatofsolarsystemmeasurements",
+        "nurjunge riesigeexoplanetensindjungundhellgenug umdirekt beobachtetwerdenzuk\u00f6nnen",
+        "desradius dermetallizit\u00e4t deskohlenstoff-sauerstoff-verh\u00e4ltnisses dermasseundderbolometrischen leuchtkraftwerdenf\u00fcrallevierplanetenabgeleitet",
+        "thesameastheperiodoftheplanet withasignalstrengthproportionaltothe gravitationalforceexertedonthestarbytheplanet",
+        "theplanetsarefitusingthe petitradtrans",
+        "jwstearly release sciencetargetwasp-39b einenhei\u00dfenexoplanetenmitdermassedessat- urn zuuntersuchen",
+        "thefieldofexoplanetresearchhasseenanexplosionofactivityoverthepast thirtyyears",
+        "nachderentwicklungder werkzeugef\u00fcrdiedatenanalyseundmodellierungwerdendieatmosph\u00e4ren dervierplanetenvonhr8799systematischcharakterisiert",
+        "claimedthefirstdetectionofanexoplanet usingtheradialvelocitymeasurementtechnique thoughthesignal-to-noise ratio s",
+        "onlyyoung giantexoplanetsarebright enoughtobedirectlyobservable",
+        "high-contrastimagingtechniquestoseparatethefaintsignalofthecompanion fromthenearbystarwhichitorbits",
+        "theiratmospheresarefoundtobehighlymetal-rich withstellar-to-superstellar c oratios",
+        "sincethen over5600exoplanetshavebeendetectedthroughvariousmeans",
+        "habenwiruns\u00fcberdiebeschaffen- heitvonplaneteninnerhalbundau\u00dferhalbunseressonnensystemsgedanken gemacht",
+        "detectedandconfirmed51pegb thefirstexoplanet orbitingamain-sequencestar thususheringintheeraofexoplanetresearch",
+        "surfacegravity radius metallicity carbon-to-oxygen numberratio mass andbolometricluminosityareinferredforallfourplanets",
+        "youweremyfirstfriend inheidelbergandaguideintothestrangelandofexoplanets",
+        "forseeminglysimilarplanets isextraordinary andsoastronomershavespent thelasttwocenturiesmeasuringthecomposition dynamics andweatherof ournearestneighbours"
+      ],
+      "abstract_concepts": [
+        "separatethesignalofacompanionfromthebrightlightofthehoststar",
+        "theeffectofsuchalgorithmsontheshapeofexoplanetspectraextractedfrom",
+        "integralfieldspectrographdataispoorlyunderstood",
+        "theresultingspectra",
+        "areaffectedbynoisethatiscorrelatedinwavelengthspaceduetobothoptical",
+        "anddataprocessingeffects",
+        "withintheframeworkofbayesianatmospheric",
+        "retrievals",
+        "weaimtounderstandhowthesecorrelationsandothersystematic",
+        "effectsimpacttheinferredphysicalparameters",
+        "weconsiderthreealgorithms",
+        "klip",
+        "pynpoint",
+        "andandromeda",
+        "rametersusingaseriesofinjectiontestsonarchivalsphereandgpidata"
+      ]
+    },
+    "analysis": {
+      "pdf_path": "data/temp/NasedkinPhDThesis2024.pdf",
+      "chemical_composition": {
+        "detected_species": [
+          "h2o",
+          "h2s",
+          "so2",
+          "h2",
+          "he",
+          "ch4",
+          "co2",
+          "co",
+          "nh3",
+          "n2",
+          "sulfur"
+        ],
+        "abundances": {
+          "he": {
+            "value": 90.0,
+            "unit": "%"
+          }
+        },
+        "unique_materials": [
+          "tio2",
+          "vo",
+          "na",
+          "k",
+          "mg",
+          "fe",
+          "al",
+          "si",
+          "clouds",
+          "aerosols"
+        ]
+      },
+      "radial_velocity": {
+        "k_velocity": null,
+        "period": null,
+        "eccentricity": 70.0,
+        "mass_function": null,
+        "minimum_mass": null,
+        "detection_method": "radial_velocity"
+      },
+      "transit_analysis": {
+        "depth": null,
+        "radius_ratio": null,
+        "planet_radius": null,
+        "period": null,
+        "duration": null,
+        "detection_method": "transit"
+      },
+      "habitable_zone": {
+        "in_habitable_zone": false,
+        "insolation": null,
+        "effective_temperature": null,
+        "semi_major_axis": 55.0,
+        "stellar_luminosity": null,
+        "hz_inner_edge": null,
+        "hz_outer_edge": null
+      },
+      "planetary_properties": {},
+      "stellar_properties": {
+        "temperature": 1600.0
+      },
+      "detection_confidence": {
+        "detection_significance": null,
+        "false_alarm_probability": null,
+        "confirmation_status": null,
+        "methods_used": [
+          "transit",
+          "radial_velocity",
+          "direct_imaging"
+        ]
+      },
+      "computed_metrics": {
+        "atmospheric_detectability": 1.1,
+        "confirmation_score": 1.0,
+        "habitability_index": 0.26666666666666666
+      }
+    },
+    "storage_id": 3,
+    "timestamp": "2026-01-12T16:31:38.452316"
+  },
+  {
+    "pdf_path": "data/temp/qt6rv7x3df.pdf",
+    "keywords": {
+      "detection_methods": [
+        "transit"
+      ],
+      "atmospheric_compounds": [
+        "h2",
+        "so2",
+        "ch4",
+        "co2",
+        "co",
+        "he",
+        "ammonia",
+        "water",
+        "carbon monoxide",
+        "methane",
+        "h2o",
+        "hydrogen",
+        "sulfur",
+        "nh3",
+        "carbon dioxide",
+        "nitrogen",
+        "h2s"
+      ],
+      "planetary_properties": [
+        "mass",
+        "eccentricity",
+        "period",
+        "radius",
+        "density",
+        "temperature",
+        "inclination"
+      ],
+      "habitable_zone": [],
+      "stellar_properties": [
+        "stellar radius",
+        "age",
+        "metallicity"
+      ],
+      "chemical_abundances": [],
+      "key_phrases": [
+        "high-temperature exoplanet atmospheres4",
+        "out-of-transit residuals",
+        "exoplanet atmosphere",
+        "full 2.8-h transit",
+        "information-rich exoplanet observations such",
+        "transit depth",
+        "mid-transit h",
+        "exoplanet wasp-39b",
+        "planetary transmis",
+        "exoplanet community early release science team",
+        "k saturn-mass exoplanet wasp-39b",
+        "transit radius",
+        "exoplanet transit model"
+      ]
+    },
+    "analysis": {
+      "pdf_path": "data/temp/qt6rv7x3df.pdf",
+      "chemical_composition": {
+        "detected_species": [
+          "h2o",
+          "h2s",
+          "so2",
+          "h2",
+          "he",
+          "ch4",
+          "co2",
+          "co",
+          "nh3",
+          "n2",
+          "sulfur"
+        ],
+        "abundances": {},
+        "unique_materials": [
+          "vo",
+          "na",
+          "k",
+          "mg",
+          "fe",
+          "al",
+          "si",
+          "cloud",
+          "aerosols"
+        ]
+      },
+      "radial_velocity": {
+        "k_velocity": null,
+        "period": null,
+        "eccentricity": 2024.0,
+        "mass_function": null,
+        "minimum_mass": null,
+        "detection_method": null
+      },
+      "transit_analysis": {
+        "depth": null,
+        "radius_ratio": null,
+        "planet_radius": null,
+        "period": null,
+        "duration": null,
+        "detection_method": "transit"
+      },
+      "habitable_zone": {
+        "in_habitable_zone": false,
+        "insolation": null,
+        "effective_temperature": null,
+        "semi_major_axis": null,
+        "stellar_luminosity": null,
+        "hz_inner_edge": null,
+        "hz_outer_edge": null
+      },
+      "planetary_properties": {},
+      "stellar_properties": {
+        "temperature": 200.0
+      },
+      "detection_confidence": {
+        "detection_significance": 2.5,
+        "false_alarm_probability": null,
+        "confirmation_status": null,
+        "methods_used": [
+          "transit",
+          "radial_velocity"
+        ]
+      },
+      "computed_metrics": {
+        "atmospheric_detectability": 1.1,
+        "confirmation_score": 0.6666666666666666,
+        "habitability_index": 0.26666666666666666
+      }
+    },
+    "storage_id": 4,
+    "timestamp": "2026-01-12T16:31:46.413194"
+  },
+  {
+    "pdf_path": "data/temp/Stankovic_Ivan.pdf",
+    "keywords": {
+      "detection_methods": [
+        "transit",
+        "radial velocity"
+      ],
+      "atmospheric_compounds": [
+        "h2",
+        "so2",
+        "co",
+        "he",
+        "water",
+        "helium",
+        "h2o",
+        "hydrogen",
+        "sulfur",
+        "n2",
+        "carbon dioxide",
+        "h2s"
+      ],
+      "planetary_properties": [
+        "mass",
+        "period",
+        "radius",
+        "density",
+        "temperature"
+      ],
+      "habitable_zone": [
+        "habitable",
+        "effective temperature",
+        "stellar flux"
+      ],
+      "stellar_properties": [
+        "stellar radius",
+        "effective temperature",
+        "metallicity"
+      ],
+      "chemical_abundances": [],
+      "key_phrases": [
+        "exoplanet characterization"
+      ],
+      "abstract_concepts": [
+        "models",
+        "\u043c\u043e\u0434\u0435\u043b\u0438",
+        "atmosphere",
+        "\u043f\u043b\u0430\u043d\u0435\u0442\u0435",
+        "\u0445\u0435\u043c\u0438\u0458\u0441\u043a\u043e\u043c",
+        "list",
+        "thesis",
+        "infer",
+        "parameters",
+        "spectrum",
+        "nirspec",
+        "spectral",
+        "taurex",
+        "fastchem",
+        "multinest"
+      ]
+    },
+    "analysis": {
+      "pdf_path": "data/temp/Stankovic_Ivan.pdf",
+      "chemical_composition": {
+        "detected_species": [
+          "h2o",
+          "h2s",
+          "so2",
+          "h2",
+          "he",
+          "co2",
+          "co",
+          "n2",
+          "sulfur"
+        ],
+        "abundances": {},
+        "unique_materials": [
+          "vo",
+          "na",
+          "k",
+          "fe",
+          "al",
+          "si",
+          "cloud",
+          "aerosols"
+        ]
+      },
+      "radial_velocity": {
+        "k_velocity": null,
+        "period": null,
+        "eccentricity": 1.0,
+        "mass_function": null,
+        "minimum_mass": null,
+        "detection_method": "radial_velocity"
+      },
+      "transit_analysis": {
+        "depth": null,
+        "radius_ratio": null,
+        "planet_radius": null,
+        "period": null,
+        "duration": null,
+        "detection_method": "transit"
+      },
+      "habitable_zone": {
+        "in_habitable_zone": true,
+        "insolation": null,
+        "effective_temperature": null,
+        "semi_major_axis": null,
+        "stellar_luminosity": null,
+        "hz_inner_edge": null,
+        "hz_outer_edge": null
+      },
+      "planetary_properties": {},
+      "stellar_properties": {},
+      "detection_confidence": {
+        "detection_significance": null,
+        "false_alarm_probability": null,
+        "confirmation_status": null,
+        "methods_used": [
+          "transit",
+          "radial_velocity"
+        ]
+      },
+      "computed_metrics": {
+        "atmospheric_detectability": 0.9,
+        "confirmation_score": 0.6666666666666666,
+        "habitability_index": 0.6
+      }
+    },
+    "storage_id": 5,
+    "timestamp": "2026-01-12T16:31:54.085266"
+  },
+  {
+    "pdf_path": "data/temp/Yang_2024_Characterisation_of_hot.pdf",
+    "keywords": {
+      "detection_methods": [
+        "transit"
+      ],
+      "atmospheric_compounds": [
+        "h2",
+        "so2",
+        "ch4",
+        "co2",
+        "co",
+        "he",
+        "water",
+        "methane",
+        "h2o",
+        "hydrogen",
+        "sulfur",
+        "nh3",
+        "carbon dioxide",
+        "nitrogen",
+        "h2s"
+      ],
+      "planetary_properties": [
+        "mass",
+        "period",
+        "radius",
+        "density",
+        "temperature",
+        "semi-major axis"
+      ],
+      "habitable_zone": [
+        "effective temperature",
+        "stellar flux"
+      ],
+      "stellar_properties": [
+        "effective temperature",
+        "luminosity",
+        "metallicity"
+      ],
+      "chemical_abundances": [],
+      "key_phrases": [
+        "multiple orbital phases",
+        "solar metallicity k star",
+        "orbital periods",
+        "hot jupiter atmospheres",
+        "oxford s planetary science community",
+        "planetary at- mospheres",
+        "large orbital radius",
+        "orbital period",
+        "gaseous giant planets"
+      ],
+      "abstract_concepts": [
+        "orbital",
+        "atmospheric",
+        "multiple",
+        "phases",
+        "abundance",
+        "formation",
+        "atmosphere",
+        "metallicity",
+        "large",
+        "high",
+        "constraints",
+        "molecular",
+        "thesis",
+        "emission",
+        "spectra"
+      ]
+    },
+    "analysis": {
+      "pdf_path": "data/temp/Yang_2024_Characterisation_of_hot.pdf",
+      "chemical_composition": {
+        "detected_species": [
+          "h2o",
+          "h2s",
+          "so2",
+          "h2",
+          "he",
+          "ch4",
+          "co2",
+          "co",
+          "nh3",
+          "n2",
+          "sulfur"
+        ],
+        "abundances": {
+          "he": {
+            "value": 95.0,
+            "unit": "%"
+          }
+        },
+        "unique_materials": [
+          "vo",
+          "na",
+          "k",
+          "mg",
+          "fe",
+          "al",
+          "si",
+          "clouds",
+          "aerosols"
+        ]
+      },
+      "radial_velocity": {
+        "k_velocity": null,
+        "period": null,
+        "eccentricity": 23.0,
+        "mass_function": null,
+        "minimum_mass": null,
+        "detection_method": null
+      },
+      "transit_analysis": {
+        "depth": null,
+        "radius_ratio": null,
+        "planet_radius": null,
+        "period": null,
+        "duration": null,
+        "detection_method": "transit"
+      },
+      "habitable_zone": {
+        "in_habitable_zone": false,
+        "insolation": null,
+        "effective_temperature": null,
+        "semi_major_axis": 0.0153,
+        "stellar_luminosity": null,
+        "hz_inner_edge": null,
+        "hz_outer_edge": null
+      },
+      "planetary_properties": {},
+      "stellar_properties": {
+        "temperature": 296.0
+      },
+      "detection_confidence": {
+        "detection_significance": null,
+        "false_alarm_probability": null,
+        "confirmation_status": null,
+        "methods_used": [
+          "transit",
+          "radial_velocity"
+        ]
+      },
+      "computed_metrics": {
+        "atmospheric_detectability": 1.1,
+        "confirmation_score": 0.6666666666666666,
+        "habitability_index": 0.26666666666666666
+      }
+    },
+    "storage_id": 6,
+    "timestamp": "2026-01-12T16:32:17.272984"
+  },
+  {
+    "pdf_path": "pdfs/Damiano_2024_ApJL_968_L22.pdf",
+    "keywords": {
+      "detection_methods": [
+        "radial velocity",
+        "transit"
+      ],
+      "atmospheric_compounds": [
+        "co2",
+        "ch4",
+        "carbon dioxide",
+        "co",
+        "water",
+        "h2o",
+        "hydrogen",
+        "n2",
+        "nitrogen",
+        "he",
+        "sulfur",
+        "methane",
+        "h2"
+      ],
+      "planetary_properties": [
+        "density",
+        "radius",
+        "mass",
+        "temperature",
+        "inclination",
+        "period"
+      ],
+      "habitable_zone": [
+        "hz",
+        "habitable zone",
+        "habitable"
+      ],
+      "stellar_properties": [
+        "metallicity"
+      ],
+      "chemical_abundances": [],
+      "key_phrases": [
+        "planetary sciences",
+        "thick h 2-rich atmosphere",
+        "h2-dominated atmosphere edwards",
+        "exoplanet demographics",
+        "exoplanet time-series observations tsos",
+        "habitable planets",
+        "primary transits",
+        "earth-sized planet",
+        "small planet",
+        "more frequent transits",
+        "recent planetary climate models",
+        "h 2-rich atmosphere",
+        "h 2-rich atmospheres",
+        "further unveil theplanet s nature",
+        "cooler planets",
+        "temperate planets",
+        "planetary surface",
+        "host star",
+        "planetary mass",
+        "high-precision transit",
+        "in-transit event",
+        "co 2-o r n2-dominated atmosphere",
+        "planet s low density",
+        "acoreless planet",
+        "hz planets",
+        "co2atmosphere kopparapu",
+        "shortorbital periods",
+        "ground-based planet surveys",
+        "host stars",
+        "planetary atmosphere"
+      ],
+      "abstract_concepts": [
+        "mass",
+        "small",
+        "planet",
+        "orbiting",
+        "habitable",
+        "zone",
+        "dwarf",
+        "host",
+        "recent",
+        "radius",
+        "constraints",
+        "indicated",
+        "either",
+        "thick",
+        "atmosphere"
+      ]
+    },
+    "analysis": {
+      "pdf_path": "pdfs/Damiano_2024_ApJL_968_L22.pdf",
+      "chemical_composition": {
+        "detected_species": [
+          "h2o",
+          "h2",
+          "he",
+          "ch4",
+          "co2",
+          "co",
+          "n2",
+          "sulfur"
+        ],
+        "abundances": {},
+        "unique_materials": [
+          "k",
+          "iron",
+          "cloud"
+        ]
+      },
+      "radial_velocity": {
+        "k_velocity": null,
+        "period": null,
+        "eccentricity": 0.0,
+        "mass_function": null,
+        "minimum_mass": null,
+        "detection_method": "radial_velocity"
+      },
+      "transit_analysis": {
+        "depth": null,
+        "radius_ratio": null,
+        "planet_radius": null,
+        "period": null,
+        "duration": null,
+        "detection_method": "transit"
+      },
+      "habitable_zone": {
+        "in_habitable_zone": true,
+        "insolation": null,
+        "effective_temperature": null,
+        "semi_major_axis": null,
+        "stellar_luminosity": null,
+        "hz_inner_edge": null,
+        "hz_outer_edge": null
+      },
+      "planetary_properties": {},
+      "stellar_properties": {
+        "temperature": 200.0
+      },
+      "detection_confidence": {
+        "detection_significance": null,
+        "false_alarm_probability": null,
+        "confirmation_status": null,
+        "methods_used": [
+          "transit",
+          "radial_velocity"
+        ]
+      },
+      "computed_metrics": {
+        "atmospheric_detectability": 0.8,
+        "confirmation_score": 0.6666666666666666,
+        "habitability_index": 0.6
+      }
+    },
+    "storage_id": 7,
+    "timestamp": "2026-01-24T03:07:51.883055"
+  }
+]

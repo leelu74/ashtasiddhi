@@ -12,11 +12,13 @@ from pathlib import Path
 from typing import Dict, List, Any
 
 from Prakamya import PrakamyaAgent
-from Laghima import LaghimaAgent  
+from Laghima import LaghimaAgent
 from Prapti import PraptiAgent
 from Garima import GarimaAgent
 from Isitva import IsitvaAgent
 from Mahima import MahimaAgent
+from Vidya import VidyaAgent
+from Shakti import ShaktiAgent
 
 class AnimaAgent:
     """Master Agent - Conquers and orchestrates exoplanet analysis"""
@@ -45,11 +47,13 @@ class AnimaAgent:
             self.garima = GarimaAgent(str(self.data_dir))  # Analysis & metrics (with DB rules)
             self.isitva = IsitvaAgent(str(self.data_dir))  # Data storage
             self.mahima = MahimaAgent()      # Backend ops
-            
+            self.vidya = VidyaAgent(str(self.data_dir))  # FITS processing
+            self.shakti = ShaktiAgent(str(self.data_dir))  # ML & Neural Networks
+
             # Initialize vasitva lazily to avoid circular import
             self._vasitva = None
-            
-            self.logger.info("All agents initialized successfully")
+
+            self.logger.info("All agents initialized successfully (v2.1 with ML)")
         except Exception as e:
             self.logger.error(f"Failed to initialize agents: {e}")
             raise
@@ -255,6 +259,146 @@ class AnimaAgent:
         """Start the FastAPI backend"""
         self.logger.info(f"Starting API on {host}:{port}")
         self.mahima.start_api(host, port)
+
+    # ==================== V2.0 METHODS ====================
+
+    def analyze_fits(self, fits_path: str) -> Dict[str, Any]:
+        """
+        Analyze FITS file and extract spectroscopic data
+
+        Args:
+            fits_path: Path to FITS file
+
+        Returns:
+            Analysis results dictionary
+        """
+        self.logger.info(f"Analyzing FITS file: {fits_path}")
+
+        try:
+            # Use Vidya to analyze FITS
+            fits_data = self.vidya.read_fits(fits_path)
+            if not fits_data:
+                return {"error": "Failed to read FITS file"}
+
+            metadata = self.vidya.extract_metadata(fits_path)
+            spectrum = self.vidya.extract_spectrum(fits_path)
+            features = self.vidya.detect_spectral_lines(fits_path)
+
+            result = {
+                'fits_file': fits_path,
+                'fits_info': fits_data,
+                'metadata': metadata,
+                'spectrum': spectrum,
+                'detected_features': features,
+                'timestamp': self.isitva.get_timestamp()
+            }
+
+            # Store FITS observation in database
+            if metadata:
+                fits_db_data = {
+                    'exoplanet_id': None,  # Will be linked later
+                    'fits_file_path': fits_path,
+                    'telescope': metadata.get('telescope'),
+                    'instrument': metadata.get('instrument'),
+                    'obs_date': metadata.get('obs_date'),
+                    'exposure_time': metadata.get('exposure_time'),
+                    'wavelength_min': spectrum.get('wavelength_min') if spectrum else None,
+                    'wavelength_max': spectrum.get('wavelength_max') if spectrum else None,
+                    'snr': spectrum.get('snr') if spectrum else None,
+                    'detected_lines': json.dumps(features) if features else '[]',
+                    'header_metadata': json.dumps(metadata)
+                }
+                self.isitva.store_fits_observation(fits_db_data)
+
+            self.logger.info("FITS analysis complete")
+            return result
+
+        except Exception as e:
+            self.logger.error(f"FITS analysis failed: {e}")
+            return {"error": str(e)}
+
+    def sync_nasa_archive(self) -> Dict[str, Any]:
+        """
+        Sync 18 target exoplanets from NASA Exoplanet Archive
+
+        Returns:
+            Summary of sync operation
+        """
+        self.logger.info("Syncing NASA Exoplanet Archive...")
+
+        try:
+            # Fetch 18 target planets
+            planets = self.laghima.sync_nasa_archive()
+
+            # Store in database
+            count = self.isitva.sync_nasa_batch(planets)
+
+            result = {
+                'total_planets': len(planets),
+                'stored_count': count,
+                'planets': [p['planet_name'] for p in planets],
+                'timestamp': self.isitva.get_timestamp()
+            }
+
+            self.logger.info(f"NASA sync complete: {count}/{len(planets)} planets stored")
+            return result
+
+        except Exception as e:
+            self.logger.error(f"NASA sync failed: {e}")
+            return {"error": str(e)}
+
+    def build_proxima_simulation(self) -> Dict[str, Any]:
+        """
+        Build complete simulation for Proxima Centauri b
+
+        Returns:
+            Simulation results
+        """
+        self.logger.info("Building Proxima Centauri b simulation...")
+
+        try:
+            # Fetch Proxima Cen b data from NASA
+            proxima_data = self.laghima.fetch_proxima_cen_b()
+            if not proxima_data:
+                return {"error": "Failed to fetch Proxima Cen b data"}
+
+            # Run simulation with Prapti
+            sim_params = {
+                'radius_ratio': 0.05,  # Estimated from mass
+                'orbital_period': proxima_data.get('pl_orbper', 11.186),
+                'inclination': 85,  # Degrees
+                'semi_major_axis': proxima_data.get('pl_orbsmax', 0.0485),
+                'num_exposures': 200
+            }
+
+            self.logger.info("Running transit simulation...")
+            sim_result = self.prapti.simulate_transit(**sim_params)
+
+            # Store simulation in database
+            sim_db_data = {
+                'exoplanet_id': None,  # Will be linked later
+                'simulation_type': 'transit',
+                'input_params': sim_params,
+                'results': sim_result,
+                'chi_squared': sim_result.get('validation', {}).get('chi_squared'),
+                'snr': sim_result.get('validation', {}).get('snr'),
+                'depth_accuracy': sim_result.get('validation', {}).get('depth_accuracy')
+            }
+            self.isitva.store_simulation(sim_db_data)
+
+            result = {
+                'planet': 'Proxima Cen b',
+                'nasa_data': proxima_data,
+                'simulation': sim_result,
+                'timestamp': self.isitva.get_timestamp()
+            }
+
+            self.logger.info("Proxima Cen b simulation complete")
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Proxima simulation failed: {e}")
+            return {"error": str(e)}
 
 def main():
     """Main CLI entry point"""

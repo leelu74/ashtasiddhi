@@ -25,6 +25,9 @@ class IsitvaAgent:
         
         # Initialize database
         self._initialize_database()
+
+        # Run migrations if needed
+        self._run_migrations()
         
     def _initialize_database(self):
         """Initialize SQLite database with required tables"""
@@ -571,6 +574,266 @@ class IsitvaAgent:
             self.logger.error(f"Data clearing failed: {e}")
             raise
 
+    # ==================== NASA EXOPLANET ARCHIVE DATA ====================
+
+    def store_nasa_exoplanet(self, nasa_data: Dict[str, Any]) -> int:
+        """
+        Store NASA Exoplanet Archive data
+
+        Args:
+            nasa_data: NASA Archive planet data
+
+        Returns:
+            Database ID of stored planet
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                INSERT OR REPLACE INTO nasa_exoplanets (
+                    planet_name, hostname, discovery_method, discovery_year,
+                    pl_orbper, pl_orbsmax, pl_rade, pl_bmasse, pl_eqt,
+                    st_teff, st_rad, st_mass, st_dist,
+                    has_atmosphere, atmosphere_composition, water_percent, mineral_composition,
+                    hz_status, hz_confidence,
+                    data_source, last_updated, archive_url
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                nasa_data.get('planet_name'),
+                nasa_data.get('hostname'),
+                nasa_data.get('discovery_method'),
+                nasa_data.get('discovery_year'),
+                nasa_data.get('pl_orbper'),
+                nasa_data.get('pl_orbsmax'),
+                nasa_data.get('pl_rade'),
+                nasa_data.get('pl_bmasse'),
+                nasa_data.get('pl_eqt'),
+                nasa_data.get('st_teff'),
+                nasa_data.get('st_rad'),
+                nasa_data.get('st_mass'),
+                nasa_data.get('st_dist'),
+                nasa_data.get('has_atmosphere', False),
+                json.dumps(nasa_data.get('atmosphere_composition', [])),
+                nasa_data.get('water_percent'),
+                json.dumps(nasa_data.get('mineral_composition', {})),
+                nasa_data.get('hz_status'),
+                nasa_data.get('hz_confidence'),
+                nasa_data.get('data_source', 'NASA Exoplanet Archive'),
+                datetime.now().isoformat(),
+                nasa_data.get('archive_url')
+            ))
+
+            planet_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+
+            self.logger.info(f"Stored NASA planet: {nasa_data.get('planet_name', 'Unknown')}")
+            return planet_id
+
+        except Exception as e:
+            self.logger.error(f"Failed to store NASA planet: {e}")
+            raise
+
+    def get_nasa_exoplanet(self, planet_name: str) -> Optional[Dict[str, Any]]:
+        """Get NASA Archive planet by name"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            df = pd.read_sql_query("""
+                SELECT * FROM nasa_exoplanets
+                WHERE planet_name = ?
+            """, conn, params=[planet_name])
+            conn.close()
+
+            if len(df) > 0:
+                return df.iloc[0].to_dict()
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Failed to get NASA planet: {e}")
+            return None
+
+    def sync_nasa_batch(self, exoplanets_list: List[Dict[str, Any]]) -> int:
+        """Sync batch of NASA Archive planets"""
+        count = 0
+        for planet_data in exoplanets_list:
+            try:
+                self.store_nasa_exoplanet(planet_data)
+                count += 1
+            except Exception as e:
+                self.logger.error(f"Failed to sync {planet_data.get('planet_name')}: {e}")
+                continue
+
+        self.logger.info(f"Synced {count}/{len(exoplanets_list)} NASA planets")
+        return count
+
+    def get_all_nasa_exoplanets(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Get all NASA Archive planets with optional filters"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+
+            where_clauses = []
+            params = []
+
+            if filters:
+                if filters.get('hz_only'):
+                    where_clauses.append("hz_status IN ('inner_hz', 'hz', 'outer_hz')")
+
+                if filters.get('has_atmosphere'):
+                    where_clauses.append("has_atmosphere = ?")
+                    params.append(True)
+
+                if filters.get('min_radius'):
+                    where_clauses.append("pl_rade >= ?")
+                    params.append(filters['min_radius'])
+
+                if filters.get('max_radius'):
+                    where_clauses.append("pl_rade <= ?")
+                    params.append(filters['max_radius'])
+
+            where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+
+            query = f"""
+                SELECT * FROM nasa_exoplanets
+                {where_sql}
+                ORDER BY planet_name
+            """
+
+            results = pd.read_sql_query(query, conn, params=params if params else None)
+            conn.close()
+
+            return results.to_dict('records')
+
+        except Exception as e:
+            self.logger.error(f"Failed to get NASA planets: {e}")
+            return []
+
+    # ==================== FITS OBSERVATIONS ====================
+
+    def store_fits_observation(self, fits_data: Dict[str, Any]) -> int:
+        """Store FITS observation data"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                INSERT INTO fits_observations (
+                    exoplanet_id, fits_file_path, telescope, instrument, obs_date, exposure_time,
+                    wavelength_min, wavelength_max, spectral_resolution,
+                    detected_lines, continuum_level, snr, header_metadata
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                fits_data.get('exoplanet_id'),
+                fits_data.get('fits_file_path'),
+                fits_data.get('telescope'),
+                fits_data.get('instrument'),
+                fits_data.get('obs_date'),
+                fits_data.get('exposure_time'),
+                fits_data.get('wavelength_min'),
+                fits_data.get('wavelength_max'),
+                fits_data.get('spectral_resolution'),
+                json.dumps(fits_data.get('detected_lines', [])),
+                fits_data.get('continuum_level'),
+                fits_data.get('snr'),
+                json.dumps(fits_data.get('header_metadata', {}))
+            ))
+
+            obs_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+
+            self.logger.info(f"Stored FITS observation ID {obs_id}")
+            return obs_id
+
+        except Exception as e:
+            self.logger.error(f"Failed to store FITS observation: {e}")
+            raise
+
+    # ==================== SIMULATIONS ====================
+
+    def store_simulation(self, sim_data: Dict[str, Any]) -> int:
+        """Store simulation results"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            # Convert numpy types to Python native types for JSON serialization
+            def convert_numpy(obj):
+                import numpy as np
+                if isinstance(obj, np.integer):
+                    return int(obj)
+                elif isinstance(obj, np.floating):
+                    return float(obj)
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                return obj
+
+            cursor.execute("""
+                INSERT INTO simulations (
+                    exoplanet_id, simulation_type, input_params, results,
+                    chi_squared, snr, depth_accuracy, created_at, galsim_version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                sim_data.get('exoplanet_id'),
+                sim_data.get('simulation_type'),
+                json.dumps(sim_data.get('input_params', {}), default=convert_numpy),
+                json.dumps(sim_data.get('results', {}), default=convert_numpy),
+                float(sim_data.get('chi_squared')) if sim_data.get('chi_squared') is not None else None,
+                float(sim_data.get('snr')) if sim_data.get('snr') is not None else None,
+                float(sim_data.get('depth_accuracy')) if sim_data.get('depth_accuracy') is not None else None,
+                datetime.now().isoformat(),
+                sim_data.get('galsim_version')
+            ))
+
+            sim_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+
+            self.logger.info(f"Stored simulation ID {sim_id}")
+            return sim_id
+
+        except Exception as e:
+            self.logger.error(f"Failed to store simulation: {e}")
+            raise
+
+    # ==================== ML PREDICTIONS ====================
+
+    def store_ml_prediction(self, pred_data: Dict[str, Any]) -> int:
+        """Store ML model prediction"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                INSERT INTO ml_predictions (
+                    exoplanet_id, model_version, planet_type, planet_type_confidence, habitability_score,
+                    predicted_mass, predicted_radius, predicted_temperature,
+                    inference_time, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                pred_data.get('exoplanet_id'),
+                pred_data.get('model_version'),
+                pred_data.get('planet_type'),
+                pred_data.get('planet_type_confidence'),
+                pred_data.get('habitability_score'),
+                pred_data.get('predicted_mass'),
+                pred_data.get('predicted_radius'),
+                pred_data.get('predicted_temperature'),
+                pred_data.get('inference_time'),
+                datetime.now().isoformat()
+            ))
+
+            pred_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+
+            self.logger.info(f"Stored ML prediction ID {pred_id}")
+            return pred_id
+
+        except Exception as e:
+            self.logger.error(f"Failed to store ML prediction: {e}")
+            raise
+
     # ==================== RULES MANAGEMENT ====================
 
     def _initialize_default_rules(self):
@@ -666,6 +929,325 @@ class IsitvaAgent:
 
         except Exception as e:
             self.logger.error(f"Failed to initialize default rules: {e}")
+
+    # ==================== DATABASE VERSION & MIGRATIONS ====================
+
+    def get_database_version(self) -> str:
+        """Get current database schema version"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            # Check if version table exists
+            cursor.execute("""
+                SELECT name FROM sqlite_master
+                WHERE type='table' AND name='schema_version'
+            """)
+
+            if cursor.fetchone() is None:
+                conn.close()
+                return "1.0"  # Default version before migrations
+
+            cursor.execute("SELECT version FROM schema_version ORDER BY id DESC LIMIT 1")
+            result = cursor.fetchone()
+            conn.close()
+
+            return result[0] if result else "1.0"
+
+        except Exception as e:
+            self.logger.error(f"Failed to get database version: {e}")
+            return "1.0"
+
+    def _set_database_version(self, version: str):
+        """Set database schema version"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            # Create version table if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS schema_version (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    version TEXT NOT NULL,
+                    applied_at TEXT NOT NULL
+                )
+            """)
+
+            cursor.execute("""
+                INSERT INTO schema_version (version, applied_at)
+                VALUES (?, ?)
+            """, (version, datetime.now().isoformat()))
+
+            conn.commit()
+            conn.close()
+
+            self.logger.info(f"Database version set to {version}")
+
+        except Exception as e:
+            self.logger.error(f"Failed to set database version: {e}")
+            raise
+
+    def _run_migrations(self):
+        """Run pending database migrations"""
+        current_version = self.get_database_version()
+
+        self.logger.info(f"Current database version: {current_version}")
+
+        # Run migrations in sequence
+        if current_version == "1.0":
+            self.logger.info("Running migration to v2.0...")
+            self._migration_v2_0()
+            current_version = "2.0"  # Update after migration
+
+        if current_version == "2.0":
+            self.logger.info("Running migration to v2.1...")
+            self._migration_v2_1()
+
+    def _migration_v2_0(self):
+        """
+        Migration to version 2.0
+        Adds:
+        - nasa_exoplanets table
+        - fits_observations table
+        - simulations table
+        - ml_predictions table
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            self.logger.info("Creating NASA exoplanets table...")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS nasa_exoplanets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    planet_name TEXT UNIQUE NOT NULL,
+                    hostname TEXT,
+                    discovery_method TEXT,
+                    discovery_year INTEGER,
+
+                    -- NASA Archive specific fields
+                    pl_orbper REAL,
+                    pl_orbsmax REAL,
+                    pl_rade REAL,
+                    pl_bmasse REAL,
+                    pl_eqt REAL,
+
+                    -- Stellar parameters
+                    st_teff REAL,
+                    st_rad REAL,
+                    st_mass REAL,
+                    st_dist REAL,
+
+                    -- Atmospheric data
+                    has_atmosphere BOOLEAN DEFAULT FALSE,
+                    atmosphere_composition TEXT,
+                    water_percent REAL,
+                    mineral_composition TEXT,
+
+                    -- Habitability
+                    hz_status TEXT,
+                    hz_confidence REAL,
+
+                    -- Metadata
+                    data_source TEXT DEFAULT 'NASA Exoplanet Archive',
+                    last_updated TEXT,
+                    archive_url TEXT
+                )
+            """)
+
+            self.logger.info("Creating FITS observations table...")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS fits_observations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    exoplanet_id INTEGER,
+                    fits_file_path TEXT NOT NULL,
+
+                    -- Observation metadata
+                    telescope TEXT,
+                    instrument TEXT,
+                    obs_date TEXT,
+                    exposure_time REAL,
+
+                    -- Spectroscopic data
+                    wavelength_min REAL,
+                    wavelength_max REAL,
+                    spectral_resolution REAL,
+
+                    -- Extracted features
+                    detected_lines TEXT,
+                    continuum_level REAL,
+                    snr REAL,
+
+                    -- FITS header JSON
+                    header_metadata TEXT,
+
+                    FOREIGN KEY (exoplanet_id) REFERENCES exoplanets (id)
+                )
+            """)
+
+            self.logger.info("Creating simulations table...")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS simulations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    exoplanet_id INTEGER,
+                    simulation_type TEXT,
+
+                    -- Input parameters (JSON)
+                    input_params TEXT,
+
+                    -- Results (JSON)
+                    results TEXT,
+
+                    -- Validation metrics
+                    chi_squared REAL,
+                    snr REAL,
+                    depth_accuracy REAL,
+
+                    -- Metadata
+                    created_at TEXT,
+                    galsim_version TEXT,
+
+                    FOREIGN KEY (exoplanet_id) REFERENCES exoplanets (id)
+                )
+            """)
+
+            self.logger.info("Creating ML predictions table...")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS ml_predictions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    exoplanet_id INTEGER,
+                    model_version TEXT,
+
+                    -- Predictions
+                    planet_type TEXT,
+                    planet_type_confidence REAL,
+                    habitability_score REAL,
+
+                    -- Extracted parameters
+                    predicted_mass REAL,
+                    predicted_radius REAL,
+                    predicted_temperature REAL,
+
+                    -- Model metadata
+                    inference_time REAL,
+                    created_at TEXT,
+
+                    FOREIGN KEY (exoplanet_id) REFERENCES exoplanets (id)
+                )
+            """)
+
+            # Create indexes for better query performance
+            self.logger.info("Creating indexes...")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_nasa_planet_name ON nasa_exoplanets (planet_name)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_nasa_hz_status ON nasa_exoplanets (hz_status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_fits_exoplanet_id ON fits_observations (exoplanet_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_simulations_exoplanet_id ON simulations (exoplanet_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ml_predictions_exoplanet_id ON ml_predictions (exoplanet_id)")
+
+            conn.commit()
+            conn.close()
+
+            # Set version to 2.0
+            self._set_database_version("2.0")
+
+            self.logger.info("✓ Migration to v2.0 completed successfully")
+
+        except Exception as e:
+            self.logger.error(f"Migration to v2.0 failed: {e}")
+            raise
+
+    def _migration_v2_1(self):
+        """
+        Migration to version 2.1
+        Adds:
+        - model_registry table (track ML models)
+        - training_runs table (experiment tracking)
+        - is_synthetic flag to fits_observations
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            self.logger.info("Creating model_registry table...")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS model_registry (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    model_name TEXT UNIQUE NOT NULL,
+                    version TEXT NOT NULL,
+                    model_file_path TEXT,
+                    architecture TEXT,
+
+                    -- Performance metrics
+                    test_precision REAL,
+                    test_recall REAL,
+                    test_f1 REAL,
+
+                    -- Training metadata
+                    trained_on TEXT,
+                    training_samples INTEGER,
+                    validation_samples INTEGER,
+
+                    -- Status
+                    is_active BOOLEAN DEFAULT FALSE,
+                    created_at TEXT,
+
+                    UNIQUE(model_name, version)
+                )
+            """)
+
+            self.logger.info("Creating training_runs table...")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS training_runs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    model_name TEXT NOT NULL,
+                    run_name TEXT,
+
+                    -- Configuration
+                    config TEXT,
+
+                    -- Training progress
+                    status TEXT,
+                    current_epoch INTEGER,
+                    total_epochs INTEGER,
+
+                    -- Metrics
+                    best_val_loss REAL,
+                    final_metrics TEXT,
+
+                    -- Timestamps
+                    started_at TEXT,
+                    completed_at TEXT
+                )
+            """)
+
+            self.logger.info("Adding is_synthetic column to fits_observations...")
+            # Check if column exists first
+            cursor.execute("PRAGMA table_info(fits_observations)")
+            columns = [col[1] for col in cursor.fetchall()]
+
+            if 'is_synthetic' not in columns:
+                cursor.execute("""
+                    ALTER TABLE fits_observations
+                    ADD COLUMN is_synthetic BOOLEAN DEFAULT FALSE
+                """)
+
+            # Create indexes for better query performance
+            self.logger.info("Creating indexes...")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_model_registry_active ON model_registry (is_active)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_training_runs_status ON training_runs (status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_fits_synthetic ON fits_observations (is_synthetic)")
+
+            conn.commit()
+            conn.close()
+
+            # Set version to 2.1
+            self._set_database_version("2.1")
+
+            self.logger.info("✓ Migration to v2.1 completed successfully")
+
+        except Exception as e:
+            self.logger.error(f"Migration to v2.1 failed: {e}")
+            raise
 
     def get_all_rules(self) -> List[Dict[str, Any]]:
         """Get all analysis rules"""
@@ -885,12 +1467,21 @@ def main():
         elif command == "backup":
             path = agent.backup_database()
             print(f"Database backed up to: {path}")
-        
+
+        elif command == "version":
+            version = agent.get_database_version()
+            print(f"Database version: {version}")
+
+        elif command == "migrate":
+            print("Running database migrations...")
+            agent._run_migrations()
+            print(f"✓ Migrations complete. Current version: {agent.get_database_version()}")
+
         else:
             print("Unknown command")
-    
+
     else:
-        print("Usage: python Isitva.py [summary|stats|export|backup]")
+        print("Usage: python Isitva.py [summary|stats|export|backup|version|migrate]")
 
 if __name__ == "__main__":
     main()

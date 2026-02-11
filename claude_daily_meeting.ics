@@ -1,0 +1,23 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Claude Code//Daily Meeting//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+DTSTART;TZID=Asia/Kolkata:20260112T153300
+DTEND;TZID=Asia/Kolkata:20260112T180000
+RRULE:FREQ=DAILY;COUNT=90
+DTSTAMP:20260112T000000Z
+UID:claude-daily-meeting-90days@ashtasiddhi
+SUMMARY:Claude Application Development
+DESCRIPTION:REMINDER: Claude must be used. Application should be running within 90 days.\n\nThis is a daily development session to ensure progress on the application using Claude.
+LOCATION:Self
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Claude Development Session starting in 15 minutes
+TRIGGER:-PT15M
+END:VALARM
+END:VEVENT
+END:VCALENDAR

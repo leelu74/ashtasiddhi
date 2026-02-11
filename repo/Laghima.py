@@ -25,6 +25,177 @@ try:
 except ImportError:
     PyPDF2 = None
 
+
+class NASAExoplanetArchive:
+    """Client for NASA Exoplanet Archive TAP service"""
+
+    BASE_URL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
+
+    # 18 Target exoplanets for V2.0
+    TARGET_18 = [
+        "Proxima Cen b",
+        "Ross 128 b",
+        "GJ 1061 d",
+        "GJ 1061 c",
+        "GJ 273 b",
+        "Teegarden's Star b",
+        "Teegarden's Star c",
+        "GJ 1002 b",
+        "GJ 1002 c",
+        "GJ 667 C f",
+        "GJ 667 C e",
+        "Wolf 1069 b",
+        "TRAPPIST-1 d",
+        "TRAPPIST-1 e",
+        "TRAPPIST-1 f",
+        "TRAPPIST-1 g",
+        "TOI-700 d",
+        "TOI-700 e"
+    ]
+
+    def __init__(self):
+        self.logger = logging.getLogger("NASA-Archive")
+
+    def query_planetary_systems(self, where_clause: str = "") -> List[Dict]:
+        """
+        Query the Planetary Systems (PS) table via TAP
+
+        Args:
+            where_clause: SQL WHERE clause (e.g., "pl_name='Proxima Cen b'")
+
+        Returns:
+            List of planet data dictionaries
+        """
+        try:
+            # Construct ADQL query
+            query = f"""
+            SELECT
+                pl_name, hostname, discoverymethod, disc_year,
+                pl_orbper, pl_orbsmax, pl_rade, pl_bmasse, pl_eqt,
+                st_teff, st_rad, st_mass, sy_dist,
+                pl_ratdor, pl_ratror
+            FROM ps
+            """
+
+            if where_clause:
+                query += f" WHERE {where_clause}"
+
+            # Make TAP request
+            params = {
+                'query': query,
+                'format': 'json'
+            }
+
+            self.logger.info(f"Querying NASA Archive...")
+            response = requests.get(self.BASE_URL, params=params, timeout=30)
+            response.raise_for_status()
+
+            data = response.json()
+
+            # Parse results
+            planets = []
+            for row in data:
+                planet = {
+                    'planet_name': row.get('pl_name'),
+                    'hostname': row.get('hostname'),
+                    'discovery_method': row.get('discoverymethod'),
+                    'discovery_year': row.get('disc_year'),
+                    'pl_orbper': row.get('pl_orbper'),
+                    'pl_orbsmax': row.get('pl_orbsmax'),
+                    'pl_rade': row.get('pl_rade'),
+                    'pl_bmasse': row.get('pl_bmasse'),
+                    'pl_eqt': row.get('pl_eqt'),
+                    'st_teff': row.get('st_teff'),
+                    'st_rad': row.get('st_rad'),
+                    'st_mass': row.get('st_mass'),
+                    'st_dist': row.get('sy_dist'),
+                    'archive_url': f"https://exoplanetarchive.ipac.caltech.edu/overview/{row.get('hostname', '')}"
+                }
+
+                # Calculate HZ status
+                planet['hz_status'] = self._calculate_hz_status(planet)
+
+                planets.append(planet)
+
+            self.logger.info(f"Retrieved {len(planets)} planets from NASA Archive")
+            return planets
+
+        except Exception as e:
+            self.logger.error(f"NASA Archive query failed: {e}")
+            return []
+
+    def fetch_exoplanet_by_name(self, name: str) -> Optional[Dict]:
+        """Fetch single exoplanet by name"""
+        where_clause = f"pl_name='{name}'"
+        results = self.query_planetary_systems(where_clause)
+        return results[0] if results else None
+
+    def fetch_target_18(self) -> List[Dict]:
+        """Fetch all 18 target exoplanets"""
+        self.logger.info("Fetching 18 target exoplanets...")
+        planets = []
+
+        for planet_name in self.TARGET_18:
+            self.logger.info(f"Fetching {planet_name}...")
+            planet = self.fetch_exoplanet_by_name(planet_name)
+            if planet:
+                planets.append(planet)
+            else:
+                self.logger.warning(f"Could not find {planet_name} in NASA Archive")
+
+            time.sleep(0.5)  # Rate limiting
+
+        self.logger.info(f"Successfully fetched {len(planets)}/18 target planets")
+        return planets
+
+    def _calculate_hz_status(self, planet: Dict) -> str:
+        """
+        Calculate habitable zone status
+
+        Args:
+            planet: Planet data dictionary
+
+        Returns:
+            HZ status: 'inner_hz', 'hz', 'outer_hz', 'non_hz'
+        """
+        try:
+            # Need stellar luminosity and semi-major axis
+            st_teff = planet.get('st_teff')
+            st_rad = planet.get('st_rad')
+            pl_orbsmax = planet.get('pl_orbsmax')
+
+            if not all([st_teff, st_rad, pl_orbsmax]):
+                return 'unknown'
+
+            # Calculate stellar luminosity (Stefan-Boltzmann)
+            # L = 4πR²σT⁴
+            # In solar units: L/L_sun = (R/R_sun)² * (T/T_sun)⁴
+            T_sun = 5778  # K
+            L_star = (st_rad ** 2) * ((st_teff / T_sun) ** 4)
+
+            # Calculate HZ boundaries (Kopparapu et al.)
+            # Conservative HZ: 0.95 - 1.37 AU for Sun
+            hz_inner = 0.95 * (L_star ** 0.5)
+            hz_outer = 1.37 * (L_star ** 0.5)
+
+            # Optimistic HZ
+            hz_inner_opt = 0.75 * (L_star ** 0.5)
+            hz_outer_opt = 1.77 * (L_star ** 0.5)
+
+            if hz_inner <= pl_orbsmax <= hz_outer:
+                return 'hz'
+            elif hz_inner_opt <= pl_orbsmax < hz_inner:
+                return 'inner_hz'
+            elif hz_outer < pl_orbsmax <= hz_outer_opt:
+                return 'outer_hz'
+            else:
+                return 'non_hz'
+
+        except Exception as e:
+            self.logger.warning(f"HZ calculation failed: {e}")
+            return 'unknown'
+
+
 class LaghimaAgent:
     """Agent for searching and downloading exoplanet research papers"""
     
@@ -64,6 +235,9 @@ class LaghimaAgent:
             'astro-ph.SR',  # Solar and Stellar Astrophysics
             'astro-ph.IM',  # Instrumentation and Methods for Astrophysics
         ]
+
+        # NASA Exoplanet Archive client
+        self.nasa_archive = NASAExoplanetArchive()
         
     def search_papers(self, keywords: List[str], max_papers: int = 10) -> List[Dict]:
         """
@@ -743,6 +917,41 @@ class LaghimaAgent:
             priority = "LOW"
             
         return priority, min(score, 1.0)
+
+    # ==================== NASA EXOPLANET ARCHIVE METHODS ====================
+
+    def fetch_nasa_data(self, planet_names: List[str]) -> List[Dict]:
+        """
+        Fetch data from NASA Exoplanet Archive for multiple planets
+
+        Args:
+            planet_names: List of planet names
+
+        Returns:
+            List of planet data dictionaries
+        """
+        planets = []
+        for name in planet_names:
+            planet = self.nasa_archive.fetch_exoplanet_by_name(name)
+            if planet:
+                planets.append(planet)
+            time.sleep(0.5)  # Rate limiting
+
+        return planets
+
+    def sync_nasa_archive(self) -> List[Dict]:
+        """
+        Sync all 18 target exoplanets from NASA Archive
+
+        Returns:
+            List of planet data
+        """
+        self.logger.info("Syncing NASA Exoplanet Archive - 18 target planets")
+        return self.nasa_archive.fetch_target_18()
+
+    def fetch_proxima_cen_b(self) -> Optional[Dict]:
+        """Fetch Proxima Centauri b data from NASA Archive"""
+        return self.nasa_archive.fetch_exoplanet_by_name("Proxima Cen b")
 
 def main():
     """Test the Laghima agent"""

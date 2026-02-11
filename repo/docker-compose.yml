@@ -3,7 +3,6 @@ services:
     build: .
     ports:
       - "8000:8000"  # API
-      - "8501:8501"  # Streamlit UI
     volumes:
       - ./data:/data
       - ./pdfs:/app/pdfs:ro  # Mount PDFs read-only

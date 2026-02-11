@@ -70,16 +70,88 @@ class PrakamyaAgent:
         self.stop_words = set(stopwords.words('english'))
     
     def extract_text_from_pdf(self, pdf_path: str) -> str:
-        """Extract text content from PDF file"""
+        """
+        Extract text content from PDF file
+
+        For large files (>25MB), automatically uses chunked processing
+        """
         try:
+            import os
+            file_size_mb = os.path.getsize(pdf_path) / (1024 * 1024)
+
+            # Use chunked processing for large files
+            if file_size_mb > 25:
+                self.logger.info(f"Large PDF detected ({file_size_mb:.1f} MB), using chunked processing")
+                return self.extract_text_from_pdf_chunked(pdf_path)
+
+            # Standard processing for smaller files
             text = ""
             with open(pdf_path, 'rb') as file:
                 pdf_reader = PyPDF2.PdfReader(file)
+                total_pages = len(pdf_reader.pages)
+                self.logger.info(f"Extracting text from {total_pages} pages")
+
                 for page in pdf_reader.pages:
                     text += page.extract_text() + "\n"
             return text
         except Exception as e:
             self.logger.error(f"Error extracting text from {pdf_path}: {e}")
+            return ""
+
+    def extract_text_from_pdf_chunked(self, pdf_path: str, chunk_size: int = 10) -> str:
+        """
+        Extract text from large PDFs in chunks to avoid memory issues
+
+        Args:
+            pdf_path: Path to PDF file
+            chunk_size: Number of pages to process at once (default: 10)
+
+        Returns:
+            Extracted text from entire PDF
+        """
+        try:
+            import os
+            file_size_mb = os.path.getsize(pdf_path) / (1024 * 1024)
+            self.logger.info(f"Processing large PDF ({file_size_mb:.1f} MB) in chunks of {chunk_size} pages")
+
+            text_chunks = []
+
+            with open(pdf_path, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                total_pages = len(pdf_reader.pages)
+                self.logger.info(f"Total pages: {total_pages}")
+
+                # Process pages in chunks
+                for start_idx in range(0, total_pages, chunk_size):
+                    end_idx = min(start_idx + chunk_size, total_pages)
+                    chunk_text = ""
+
+                    self.logger.info(f"Processing pages {start_idx+1} to {end_idx}")
+
+                    for page_idx in range(start_idx, end_idx):
+                        try:
+                            page = pdf_reader.pages[page_idx]
+                            page_text = page.extract_text()
+                            if page_text:
+                                chunk_text += page_text + "\n"
+                        except Exception as e:
+                            self.logger.warning(f"Failed to extract page {page_idx+1}: {e}")
+                            continue
+
+                    text_chunks.append(chunk_text)
+
+                    # Log progress
+                    progress = (end_idx / total_pages) * 100
+                    self.logger.info(f"Progress: {progress:.1f}%")
+
+            # Combine all chunks
+            full_text = "\n".join(text_chunks)
+            self.logger.info(f"Successfully extracted {len(full_text)} characters from {total_pages} pages")
+
+            return full_text
+
+        except Exception as e:
+            self.logger.error(f"Error in chunked PDF extraction from {pdf_path}: {e}")
             return ""
     
     def extract_keywords(self, pdf_path: str) -> Dict[str, List[str]]:

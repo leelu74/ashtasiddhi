@@ -151,6 +151,41 @@ class PraptiAgent:
             self.logger.error(f"Failed to parse config {config_path}: {e}")
             return {}
     
+    def simulate_transit(self, **kwargs) -> Dict[str, Any]:
+        """
+        Wrapper method for transit simulation with keyword arguments
+
+        Args:
+            **kwargs: Planet and simulation parameters
+                - radius_ratio: Rp/Rs (default: 0.1)
+                - orbital_period: days (default: 3.0)
+                - inclination: degrees (default: 90.0)
+                - semi_major_axis: AU (default: 0.03)
+                - num_exposures: number of exposures (default: 100)
+                - obs_duration: hours (default: 6.0)
+
+        Returns:
+            Simulation results with validation metrics
+        """
+        # Convert kwargs to planet_params dict
+        planet_params = {
+            'radius_ratio': kwargs.get('radius_ratio', 0.1),
+            'period': kwargs.get('orbital_period', kwargs.get('period', 3.0)),
+            'inclination': kwargs.get('inclination', 90.0),
+            'semi_major_axis': kwargs.get('semi_major_axis', 0.03),
+            'n_exposures': kwargs.get('num_exposures', kwargs.get('n_exposures', 100)),
+            'obs_duration': kwargs.get('obs_duration', 6.0)
+        }
+
+        # Run simulation
+        sim_results = self.run_transit_simulation(planet_params)
+
+        # Add validation metrics
+        validation = self.validate_with_great3_metrics(sim_results)
+        sim_results['validation'] = validation
+
+        return sim_results
+
     def run_transit_simulation(self, planet_params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Run exoplanet transit simulation using GalSim
