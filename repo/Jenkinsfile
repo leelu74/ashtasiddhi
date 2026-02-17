@@ -1,0 +1,239 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_USER    = 'leelu74'
+        IMAGE_NAME         = "${DOCKER_HUB_USER}/ashtasiddhi"
+        IMAGE_TAG          = "build-${BUILD_NUMBER}"
+        CONTAINER_API      = 'ashtasiddhi-api'
+        CONTAINER_UI       = 'ashtasiddhi-ui'
+        API_PORT           = '8000'
+        UI_PORT            = '8502'
+        NETWORK_NAME       = 'ashtasiddhi-net'
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 60, unit: 'MINUTES')
+        timestamps()
+    }
+
+    stages {
+
+        // ─────────────────────────────────────────────
+        // 1. CHECKOUT
+        // ─────────────────────────────────────────────
+        stage('Checkout') {
+            steps {
+                echo "Cloning repository from GitHub..."
+                git url: 'https://github.com/leelu74/ashtasiddhi.git',
+                    branch: 'main'
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        // 2. BUILD
+        // ─────────────────────────────────────────────
+        stage('Build Docker Image') {
+            steps {
+                echo "Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
+                sh """
+                    docker build \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                        -t ${IMAGE_NAME}:latest \
+                        .
+                """
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        // 3. TEST
+        // ─────────────────────────────────────────────
+        stage('Run Tests') {
+            steps {
+                echo "Running test suite inside the container..."
+                sh """
+                    docker run --rm \
+                        -e PYTHONPATH=/app \
+                        -e DATA_DIR=/app/data \
+                        ${IMAGE_NAME}:${IMAGE_TAG} \
+                        python -m pytest test_example.py test_paper_system.py \
+                            -v --tb=short
+                """
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        // 4. PUSH TO DOCKER HUB
+        // ─────────────────────────────────────────────
+        stage('Push to Docker Hub') {
+            steps {
+                echo "Pushing image to Docker Hub..."
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh """
+                        echo "\${DOCKER_PASS}" | docker login -u "\${DOCKER_USER}" --password-stdin
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                        docker push ${IMAGE_NAME}:latest
+                    """
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        // 5. PULL FROM DOCKER HUB
+        // ─────────────────────────────────────────────
+        stage('Pull from Docker Hub') {
+            steps {
+                echo "Pulling latest image from Docker Hub..."
+                sh "docker pull ${IMAGE_NAME}:latest"
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        // 6. DEPLOY – API (first in sequence)
+        // ─────────────────────────────────────────────
+        stage('Deploy API') {
+            steps {
+                echo "Starting API container..."
+                sh """
+                    # Ensure shared network exists
+                    docker network create ${NETWORK_NAME} 2>/dev/null || true
+
+                    # Remove old container if present
+                    docker stop  ${CONTAINER_API} 2>/dev/null || true
+                    docker rm    ${CONTAINER_API} 2>/dev/null || true
+
+                    # Start API
+                    docker run -d \
+                        --name    ${CONTAINER_API} \
+                        --network ${NETWORK_NAME} \
+                        --restart unless-stopped \
+                        -p ${API_PORT}:8000 \
+                        -v \$(pwd)/data:/data \
+                        -v \$(pwd)/pdfs:/app/pdfs:ro \
+                        -v \$(pwd)/Researchpdfs:/app/Researchpdfs:ro \
+                        -e DATA_DIR=/data \
+                        -e PYTHONPATH=/app \
+                        ${IMAGE_NAME}:latest \
+                        python Anima.py --api
+                """
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        // 7. HEALTH CHECK – API (must pass before UI starts)
+        // ─────────────────────────────────────────────
+        stage('Health Check - API') {
+            steps {
+                script {
+                    echo "Waiting for API to become healthy on port ${API_PORT}..."
+                    def maxRetries = 18   // 18 x 10 s = 3 min max
+                    def ready = false
+                    for (int i = 1; i <= maxRetries; i++) {
+                        try {
+                            sh "curl -sf http://localhost:${API_PORT}/health"
+                            ready = true
+                            echo "API is healthy!"
+                            break
+                        } catch (ignored) {
+                            echo "Attempt ${i}/${maxRetries} – API not ready yet. Retrying in 10 s..."
+                            sleep 10
+                        }
+                    }
+                    if (!ready) {
+                        error "API failed to become healthy after ${maxRetries} retries."
+                    }
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        // 8. DEPLOY – UI (starts only after API is healthy)
+        // ─────────────────────────────────────────────
+        stage('Deploy UI') {
+            steps {
+                echo "Starting UI container..."
+                sh """
+                    docker stop  ${CONTAINER_UI} 2>/dev/null || true
+                    docker rm    ${CONTAINER_UI} 2>/dev/null || true
+
+                    docker run -d \
+                        --name    ${CONTAINER_UI} \
+                        --network ${NETWORK_NAME} \
+                        --restart unless-stopped \
+                        -p ${UI_PORT}:8501 \
+                        -v \$(pwd)/data:/data \
+                        -v \$(pwd)/Researchpdfs:/app/Researchpdfs:ro \
+                        -e DATA_DIR=/data \
+                        -e PYTHONPATH=/app \
+                        -e API_URL=http://${CONTAINER_API}:8000 \
+                        ${IMAGE_NAME}:latest \
+                        streamlit run Vasitva.py \
+                            --server.address=0.0.0.0 \
+                            --server.port=8501
+                """
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        // 9. HEALTH CHECK – UI
+        // ─────────────────────────────────────────────
+        stage('Health Check - UI') {
+            steps {
+                script {
+                    echo "Waiting for UI to become healthy on port ${UI_PORT}..."
+                    def maxRetries = 12   // 12 x 10 s = 2 min max
+                    def ready = false
+                    for (int i = 1; i <= maxRetries; i++) {
+                        try {
+                            sh "curl -sf http://localhost:${UI_PORT}/_stcore/health"
+                            ready = true
+                            echo "UI is healthy!"
+                            break
+                        } catch (ignored) {
+                            echo "Attempt ${i}/${maxRetries} – UI not ready yet. Retrying in 10 s..."
+                            sleep 10
+                        }
+                    }
+                    if (!ready) {
+                        error "UI failed to become healthy after ${maxRetries} retries."
+                    }
+                }
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // POST ACTIONS
+    // ─────────────────────────────────────────────
+    post {
+        always {
+            sh "docker logout || true"
+            sh "docker image prune -f  || true"
+        }
+
+        success {
+            echo """
+====================================================
+  DEPLOYMENT SUCCESSFUL
+====================================================
+  Image : ${IMAGE_NAME}:${IMAGE_TAG}
+  API   : http://localhost:${API_PORT}
+  UI    : http://localhost:${UI_PORT}
+====================================================
+"""
+        }
+
+        failure {
+            echo "Pipeline failed – rolling back containers..."
+            sh """
+                docker stop ${CONTAINER_API} ${CONTAINER_UI} 2>/dev/null || true
+                docker rm   ${CONTAINER_API} ${CONTAINER_UI} 2>/dev/null || true
+            """
+        }
+    }
+}

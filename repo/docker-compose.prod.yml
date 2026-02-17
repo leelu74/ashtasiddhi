@@ -1,0 +1,56 @@
+version: '3.3'
+
+# Production compose file – uses pre-built images from Docker Hub.
+# Used by the Jenkins CI/CD pipeline after images are pushed.
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  exoplanet-analysis:
+    image: leelu74/ashtasiddhi:latest
+    container_name: ashtasiddhi-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+      - ./pdfs:/app/pdfs:ro
+      - ./Researchpdfs:/app/Researchpdfs:ro
+    environment:
+      - DATA_DIR=/data
+      - PYTHONPATH=/app
+    command: python Anima.py --api
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ashtasiddhi-net
+
+  exoplanet-ui:
+    image: leelu74/ashtasiddhi:latest
+    container_name: ashtasiddhi-ui
+    restart: unless-stopped
+    ports:
+      - "8502:8501"
+    volumes:
+      - ./data:/data
+      - ./Researchpdfs:/app/Researchpdfs:ro
+    environment:
+      - DATA_DIR=/data
+      - PYTHONPATH=/app
+      - API_URL=http://exoplanet-analysis:8000
+    command: streamlit run Vasitva.py --server.address=0.0.0.0 --server.port=8501
+    depends_on:
+      exoplanet-analysis:
+        condition: service_healthy
+    networks:
+      - ashtasiddhi-net
+
+networks:
+  ashtasiddhi-net:
+    driver: bridge
+
+volumes:
+  data:
